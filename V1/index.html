@@ -1,0 +1,2003 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Hub - Deepcompany</title>
+    <meta name="description" content="Plataforma de demos interactivos para sistemas Deepcompany">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        /* ================================================================
+           RESET & BASE
+           ================================================================ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { font-size: 16px; scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            background: #0a0a0f;
+            color: #e2e8f0;
+        }
+        button { cursor: pointer; border: none; background: none; font-family: inherit; }
+        input, select, textarea { font-family: inherit; }
+
+        /* ================================================================
+           SCREEN SYSTEM
+           ================================================================ */
+        .screen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        .screen.active {
+            opacity: 1;
+            pointer-events: all;
+            z-index: 1;
+        }
+
+        /* ================================================================
+           TOAST / NOTIFICATION SYSTEM
+           ================================================================ */
+        #toast-container {
+            position: fixed;
+            top: 24px; right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 22px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #fff;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+            animation: toastIn 0.4s cubic-bezier(0.22, 1, 0.36, 1), toastOut 0.35s 3.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+            display: flex; align-items: center; gap: 10px;
+            backdrop-filter: blur(12px);
+            max-width: 380px;
+        }
+        .toast.success { background: linear-gradient(135deg, #059669cc, #10b981cc); border-left: 4px solid #34d399; }
+        .toast.error { background: linear-gradient(135deg, #dc2626cc, #ef4444cc); border-left: 4px solid #f87171; }
+        .toast.info { background: linear-gradient(135deg, #2563ebcc, #3b82f6cc); border-left: 4px solid #60a5fa; }
+        .toast.warning { background: linear-gradient(135deg, #d97706cc, #f59e0bcc); border-left: 4px solid #fbbf24; }
+        @keyframes toastIn { from { transform: translateX(120%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+        @keyframes toastOut { from { opacity:1; transform: translateX(0); } to { opacity:0; transform: translateX(120%); } }
+
+        /* ================================================================
+           HUB SCREEN
+           ================================================================ */
+        .hub-screen {
+            background: linear-gradient(145deg, #0a0a1a 0%, #0f1029 40%, #0a0a1a 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+        }
+        /* Animated background orbs */
+        .hub-screen::before, .hub-screen::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            pointer-events: none;
+        }
+        .hub-screen::before {
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, #6366f1, transparent 70%);
+            top: -100px; left: -100px;
+            animation: orbFloat 12s ease-in-out infinite alternate;
+        }
+        .hub-screen::after {
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, #06b6d4, transparent 70%);
+            bottom: -80px; right: -80px;
+            animation: orbFloat 10s ease-in-out infinite alternate-reverse;
+        }
+        @keyframes orbFloat {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(60px, -40px) scale(1.15); }
+        }
+
+        .hub-header {
+            text-align: center;
+            margin-bottom: 48px;
+            position: relative;
+            z-index: 2;
+        }
+        .hub-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #a5b4fc, #818cf8, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+            margin-bottom: 8px;
+        }
+        .hub-header p {
+            color: #64748b;
+            font-size: 1.05rem;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        .hub-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            max-width: 1000px;
+            width: 90%;
+            position: relative;
+            z-index: 2;
+        }
+
+        .hub-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 32px 28px;
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .hub-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), transparent 60%);
+            opacity: 0;
+            transition: opacity 0.35s ease;
+        }
+        .hub-card:hover {
+            border-color: rgba(99, 102, 241, 0.35);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 60px -12px rgba(99, 102, 241, 0.2);
+        }
+        .hub-card:hover::before { opacity: 1; }
+
+        .hub-card-icon {
+            width: 56px; height: 56px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 1;
+        }
+        .hub-card-icon.pos-icon {
+            background: linear-gradient(135deg, #303F9F, #1a237e);
+            color: #a5d6a7;
+        }
+        .hub-card-icon.access-icon {
+            background: linear-gradient(135deg, #00897B, #004D40);
+            color: #80cbc4;
+        }
+        .hub-card-icon.inv-icon {
+            background: linear-gradient(135deg, #E65100, #BF360C);
+            color: #ffcc02;
+        }
+
+        .hub-card h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 8px;
+            position: relative; z-index: 1;
+        }
+        .hub-card p {
+            font-size: 0.88rem;
+            color: #94a3b8;
+            line-height: 1.5;
+            position: relative; z-index: 1;
+        }
+        .hub-card .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 16px;
+            position: relative; z-index: 1;
+        }
+        .badge.active { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .badge.coming { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+
+        /* Hub footer */
+        .hub-footer {
+            position: absolute;
+            bottom: 20px;
+            text-align: center;
+            width: 100%;
+            z-index: 2;
+        }
+        .hub-footer span {
+            color: #334155;
+            font-size: 0.78rem;
+            letter-spacing: 0.5px;
+        }
+
+        /* ================================================================
+           POS SCREEN - PARKEATE
+           ================================================================ */
+        :root {
+            --pos-primary: #303F9F;
+            --pos-primary-dark: #1a237e;
+            --pos-accent: #7cb342;
+            --pos-accent-light: #9ccc65;
+            --pos-bg: #f5f5f5;
+            --pos-white: #ffffff;
+            --pos-text: #333333;
+            --pos-text-light: #757575;
+            --pos-border: #e0e0e0;
+            --pos-green-ref: #4caf50;
+        }
+        .pos-screen {
+            background: var(--pos-bg);
+            color: var(--pos-text);
+            display: flex;
+            flex-direction: column;
+            font-size: 14px;
+        }
+
+        /* POS Header */
+        .pos-header {
+            background: linear-gradient(135deg, var(--pos-primary-dark), var(--pos-primary));
+            height: 52px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 100;
+            flex-shrink: 0;
+        }
+        .pos-hamburger {
+            color: #fff;
+            font-size: 28px;
+            padding: 4px;
+            border-radius: 6px;
+            transition: background 0.2s;
+            display: flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px;
+        }
+        .pos-hamburger:hover { background: rgba(255,255,255,0.12); }
+
+        .pos-logo {
+            flex: 1;
+            text-align: center;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.7rem;
+            font-weight: 800;
+            color: var(--pos-accent);
+            letter-spacing: -0.5px;
+        }
+        .pos-logo .p-letter { color: var(--pos-accent-light); }
+
+        .pos-header-right {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .pos-header-right .material-icons-round { color: #c5cae9; font-size: 22px; }
+        .pos-status-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #4caf50;
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+        }
+
+        /* POS Toolbar */
+        .pos-toolbar {
+            background: var(--pos-white);
+            border-bottom: 2px solid var(--pos-border);
+            display: flex;
+            padding: 10px 16px;
+            gap: 6px;
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .pos-toolbar-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 14px;
+            border-radius: 10px;
+            transition: all 0.2s;
+            min-width: 80px;
+            color: var(--pos-primary);
+        }
+        .pos-toolbar-btn:hover {
+            background: rgba(48, 63, 159, 0.06);
+        }
+        .pos-toolbar-btn .material-icons-round { font-size: 24px; }
+        .pos-toolbar-btn span {
+            font-size: 0.7rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* POS Main Content */
+        .pos-main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .pos-left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 16px 20px;
+            overflow-y: auto;
+        }
+
+        /* Ticket Info */
+        .pos-ticket-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 40px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--pos-border);
+            margin-bottom: 12px;
+        }
+        .pos-ticket-info .info-row {
+            display: flex;
+            gap: 6px;
+            font-size: 0.82rem;
+        }
+        .pos-ticket-info .info-label { color: var(--pos-text); font-weight: 500; }
+        .pos-ticket-info .info-value { color: var(--pos-text-light); }
+
+        /* Cart Table */
+        .pos-cart-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+        .pos-cart-table thead th {
+            text-align: left;
+            padding: 10px 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--pos-text);
+            border-bottom: 2px solid var(--pos-border);
+        }
+        .pos-cart-table tbody td {
+            padding: 8px;
+            font-size: 0.82rem;
+            color: var(--pos-text-light);
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .pos-cart-table tbody tr:hover { background: rgba(48, 63, 159, 0.02); }
+
+        /* Totals */
+        .pos-totals-section {
+            margin-top: auto;
+            border-top: 2px solid var(--pos-border);
+            padding-top: 10px;
+        }
+        .pos-totals-grid {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 2px 20px;
+            font-size: 0.85rem;
+            align-items: center;
+        }
+        .pos-totals-grid .label { font-weight: 500; }
+        .pos-totals-grid .bs { text-align: right; }
+        .pos-totals-grid .ref { text-align: right; color: var(--pos-green-ref); }
+        .pos-totals-grid .header-row {
+            font-weight: 600;
+            font-size: 0.78rem;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--pos-border);
+            margin-bottom: 4px;
+        }
+
+        .pos-total-bar {
+            background: linear-gradient(135deg, #37474f, #455a64);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+        .pos-total-bar .total-label {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        .pos-total-bar .total-amount {
+            font-size: 1.2rem;
+            font-weight: 800;
+        }
+        .pos-total-bar .total-ref {
+            font-size: 0.82rem;
+            color: var(--pos-green-ref);
+            text-align: right;
+        }
+
+        /* Right panel - images */
+        .pos-right {
+            width: 320px;
+            padding: 16px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .pos-image-box {
+            background: #ddd;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+        .pos-image-box .material-icons-round {
+            font-size: 48px;
+            color: #999;
+        }
+        .pos-image-box.plate {
+            border: 3px solid #bdbdbd;
+        }
+        .pos-image-box.plate::after {
+            content: 'ABC - 123';
+            position: absolute;
+            bottom: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #555;
+            background: rgba(255,255,255,0.85);
+            padding: 2px 10px;
+            border-radius: 4px;
+        }
+
+        /* POS Footer */
+        .pos-footer {
+            background: var(--pos-white);
+            border-top: 1px solid var(--pos-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 20px;
+            font-size: 0.75rem;
+            color: var(--pos-text-light);
+            flex-shrink: 0;
+        }
+        .pos-footer-brand {
+            display: flex; align-items: center; gap: 8px;
+            font-weight: 600;
+            color: var(--pos-primary);
+        }
+
+        /* ================================================================
+           POS SIDEBAR
+           ================================================================ */
+        .pos-sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 500;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .pos-sidebar-overlay.open { opacity: 1; pointer-events: all; }
+
+        .pos-sidebar {
+            position: fixed;
+            top: 0; left: 0;
+            width: 300px;
+            height: 100%;
+            background: var(--pos-white);
+            z-index: 501;
+            transform: translateX(-100%);
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+        }
+        .pos-sidebar.open { transform: translateX(0); }
+
+        .pos-sidebar-header {
+            background: linear-gradient(135deg, var(--pos-primary-dark), var(--pos-primary));
+            padding: 20px;
+            color: #fff;
+        }
+        .pos-sidebar-header h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+        .pos-sidebar-header p {
+            font-size: 0.78rem;
+            color: #c5cae9;
+            margin-top: 4px;
+        }
+
+        .pos-sidebar-menu {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 0;
+        }
+        .pos-sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 20px;
+            font-size: 0.92rem;
+            font-weight: 500;
+            color: var(--pos-text);
+            transition: all 0.2s;
+            width: 100%;
+            text-align: left;
+        }
+        .pos-sidebar-item:hover { background: rgba(48, 63, 159, 0.06); color: var(--pos-primary); }
+        .pos-sidebar-item .material-icons-round { font-size: 22px; color: var(--pos-primary); opacity: 0.7; }
+
+        .pos-sidebar-divider {
+            height: 1px;
+            background: var(--pos-border);
+            margin: 8px 20px;
+        }
+
+        .pos-sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--pos-border);
+        }
+        .pos-sidebar-footer button {
+            display: flex; align-items: center; gap: 10px;
+            color: #ef4444;
+            font-weight: 500;
+            font-size: 0.9rem;
+            padding: 10px 0;
+            width: 100%;
+        }
+        .pos-sidebar-footer button:hover { opacity: 0.8; }
+
+        /* ================================================================
+           RESET CONFIG VIEW
+           ================================================================ */
+        .pos-config-view {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .pos-config-view.active { display: flex; }
+
+        .pos-config-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 24px;
+            background: var(--pos-white);
+            border-bottom: 2px solid var(--pos-border);
+            flex-shrink: 0;
+        }
+        .pos-config-back {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--pos-primary);
+            transition: background 0.2s;
+        }
+        .pos-config-back:hover { background: rgba(48,63,159,0.08); }
+        .pos-config-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--pos-text);
+        }
+
+        .pos-config-body {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .config-group {
+            margin-bottom: 32px;
+        }
+        .config-group-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--pos-primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+        .config-group-title::after {
+            content: '';
+            flex: 1;
+            height: 2px;
+            background: linear-gradient(90deg, var(--pos-primary), transparent);
+            opacity: 0.2;
+        }
+
+        .config-buttons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 14px;
+        }
+
+        .config-btn {
+            background: var(--pos-white);
+            border: 2px solid var(--pos-border);
+            border-radius: 14px;
+            padding: 20px 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            text-align: center;
+            transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+            overflow: hidden;
+            min-height: 120px;
+            justify-content: center;
+        }
+        .config-btn:hover {
+            border-color: var(--pos-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(48, 63, 159, 0.12);
+        }
+        .config-btn:active { transform: translateY(0) scale(0.98); }
+
+        .config-btn .btn-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+        }
+        .config-btn .btn-icon.megasoft { background: linear-gradient(135deg, #1565c0, #1976d2); color: #fff; }
+        .config-btn .btn-icon.printer { background: linear-gradient(135deg, #6a1b9a, #8e24aa); color: #fff; }
+        .config-btn .btn-icon.danger { background: linear-gradient(135deg, #c62828, #e53935); color: #fff; }
+        .config-btn .btn-icon.success { background: linear-gradient(135deg, #2e7d32, #43a047); color: #fff; }
+        .config-btn .btn-icon.warning { background: linear-gradient(135deg, #e65100, #f57c00); color: #fff; }
+
+        .config-btn .btn-title {
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: var(--pos-text);
+        }
+        .config-btn .btn-subtitle {
+            font-size: 0.72rem;
+            color: var(--pos-text-light);
+        }
+        .config-btn .btn-badge {
+            position: absolute;
+            top: 8px; right: 8px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-badge.modal-badge { background: rgba(48,63,159,0.1); color: var(--pos-primary); }
+        .btn-badge.auto-badge { background: rgba(76,175,80,0.1); color: #2e7d32; }
+
+        /* Config button status animation */
+        .config-btn .status-indicator {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        .config-btn.running .status-indicator { display: flex; }
+        .config-btn.running { pointer-events: none; opacity: 0.85; }
+
+        .spinner-small {
+            width: 16px; height: 16px;
+            border: 2px solid rgba(48,63,159,0.2);
+            border-top-color: var(--pos-primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ================================================================
+           SEQUENTIAL TESTS VIEW
+           ================================================================ */
+        .test-sequence-container {
+            background: var(--pos-white);
+            border: 2px solid var(--pos-border);
+            border-radius: 14px;
+            padding: 20px;
+            margin-top: 14px;
+            display: none;
+        }
+        .test-sequence-container.visible { display: block; }
+        .test-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f5f5f5;
+            font-size: 0.88rem;
+        }
+        .test-step:last-child { border-bottom: none; }
+        .test-step .step-icon {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .test-step.pending .step-icon { background: #f5f5f5; color: #bdbdbd; }
+        .test-step.running .step-icon { background: #e3f2fd; color: #1976d2; }
+        .test-step.running .step-icon .spinner-small { width: 14px; height: 14px; border-width: 2px; }
+        .test-step.success .step-icon { background: #e8f5e9; color: #43a047; }
+        .test-step.error .step-icon { background: #fce4ec; color: #e53935; }
+        .test-step .step-text { font-weight: 500; color: var(--pos-text); }
+        .test-step.pending .step-text { color: #bdbdbd; }
+        .test-step .step-result {
+            margin-left: auto;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .test-step.success .step-result { color: #43a047; }
+        .test-step.error .step-result { color: #e53935; }
+
+        /* ================================================================
+           MODAL SYSTEM
+           ================================================================ */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+        .modal-card {
+            background: var(--pos-white);
+            border-radius: 18px;
+            width: 90%;
+            max-width: 520px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+            transform: translateY(20px) scale(0.95);
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .modal-overlay.open .modal-card { transform: translateY(0) scale(1); }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--pos-border);
+        }
+        .modal-header h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--pos-text);
+        }
+        .modal-close {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--pos-text-light);
+            transition: all 0.2s;
+            font-size: 20px;
+        }
+        .modal-close:hover { background: #f5f5f5; color: var(--pos-text); }
+
+        .modal-body { padding: 24px; }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--pos-border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Form elements */
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--pos-text);
+            margin-bottom: 6px;
+        }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--pos-border);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: var(--pos-text);
+            background: var(--pos-white);
+            transition: border-color 0.2s;
+            outline: none;
+        }
+        .form-input:focus, .form-select:focus {
+            border-color: var(--pos-primary);
+            box-shadow: 0 0 0 3px rgba(48, 63, 159, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--pos-primary), var(--pos-primary-dark));
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(48, 63, 159, 0.3); }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: var(--pos-text);
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: #eeeeee; }
+
+        .btn-success {
+            background: linear-gradient(135deg, #2e7d32, #43a047);
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-success:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(46, 125, 50, 0.3); }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #c62828, #e53935);
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(198, 40, 40, 0.3); }
+
+        /* Modal printer test buttons */
+        .print-btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .print-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 20px 14px;
+            border: 2px solid var(--pos-border);
+            border-radius: 12px;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .print-btn:hover {
+            border-color: #8e24aa;
+            background: rgba(142, 36, 170, 0.04);
+        }
+        .print-btn .material-icons-round { font-size: 28px; color: #8e24aa; }
+        .print-btn .print-label { font-weight: 600; font-size: 0.85rem; color: var(--pos-text); }
+
+        /* Modal result area */
+        .modal-result {
+            margin-top: 16px;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            display: none;
+        }
+        .modal-result.visible { display: block; }
+        .modal-result.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+        .modal-result.error { background: #fce4ec; color: #c62828; border: 1px solid #ef9a9a; }
+        .modal-result.info { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+
+        /* ================================================================
+           CONFIRMATION DIALOG
+           ================================================================ */
+        .confirm-dialog {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            backdrop-filter: blur(4px);
+        }
+        .confirm-dialog.open { opacity: 1; pointer-events: all; }
+        .confirm-card {
+            background: var(--pos-white);
+            border-radius: 18px;
+            padding: 28px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+            transform: scale(0.9);
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .confirm-dialog.open .confirm-card { transform: scale(1); }
+        .confirm-card .confirm-icon {
+            width: 56px; height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px;
+        }
+        .confirm-card .confirm-icon .material-icons-round { font-size: 28px; color: #e65100; }
+        .confirm-card h4 { font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--pos-text); margin-bottom: 8px; }
+        .confirm-card p { font-size: 0.88rem; color: var(--pos-text-light); line-height: 1.5; margin-bottom: 24px; }
+        .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+
+        /* ================================================================
+           ANIMATIONS
+           ================================================================ */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-up {
+            animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        .delay-1 { animation-delay: 0.1s; opacity: 0; }
+        .delay-2 { animation-delay: 0.2s; opacity: 0; }
+        .delay-3 { animation-delay: 0.3s; opacity: 0; }
+    </style>
+</head>
+<body>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container"></div>
+
+    <!-- ============================================================
+         HUB SCREEN
+         ============================================================ -->
+    <div id="hub-screen" class="screen hub-screen active">
+        <div class="hub-header">
+            <h1>Demo Hub</h1>
+            <p>Plataforma de demostraciones interactivas</p>
+        </div>
+        <div class="hub-grid">
+            <!-- POS Card -->
+            <div class="hub-card fade-in-up delay-1" onclick="navigateTo('pos')">
+                <div class="hub-card-icon pos-icon">
+                    <span class="material-icons-round">point_of_sale</span>
+                </div>
+                <h3>Punto de Venta</h3>
+                <p>Sistema de caja para facturación de tickets de estacionamiento. Interfaz completa con carrito de compras y gestión de tickets.</p>
+                <span class="badge active">Activo</span>
+            </div>
+            <!-- Placeholder Cards -->
+            <div class="hub-card fade-in-up delay-2" style="opacity: 0.5; cursor: default;">
+                <div class="hub-card-icon access-icon">
+                    <span class="material-icons-round">security</span>
+                </div>
+                <h3>Control de Acceso</h3>
+                <p>Demo del sistema de control de acceso vehicular con lectores y barreras automatizadas.</p>
+                <span class="badge coming">Próximamente</span>
+            </div>
+            <div class="hub-card fade-in-up delay-3" style="opacity: 0.5; cursor: default;">
+                <div class="hub-card-icon inv-icon">
+                    <span class="material-icons-round">inventory_2</span>
+                </div>
+                <h3>Inventario</h3>
+                <p>Gestión de inventario con seguimiento de productos, precios y costos en tiempo real.</p>
+                <span class="badge coming">Próximamente</span>
+            </div>
+        </div>
+        <div class="hub-footer">
+            <span>© 2026 Deepcompany Servicios Online C.A.</span>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         POS SCREEN
+         ============================================================ -->
+    <div id="pos-screen" class="screen pos-screen">
+        <!-- POS Header -->
+        <div class="pos-header">
+            <button class="pos-hamburger" id="pos-menu-btn" onclick="toggleSidebar()">
+                <span class="material-icons-round">menu</span>
+            </button>
+            <div class="pos-logo"><span class="p-letter">p</span>arkeate</div>
+            <div class="pos-header-right">
+                <span class="material-icons-round">notifications</span>
+                <div class="pos-status-dot" title="Conectado"></div>
+            </div>
+        </div>
+
+        <!-- POS Main View (Caja) -->
+        <div id="pos-main-view" class="pos-config-view active" style="display: flex;">
+            <!-- Toolbar -->
+            <div class="pos-toolbar">
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">person</span>
+                    <span>Cliente</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">attach_money</span>
+                    <span>Cambiar Tarifa</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">inventory</span>
+                    <span>Paquetes</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">receipt_long</span>
+                    <span>Generar Ticket</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">search</span>
+                    <span>Buscar ticket</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">description</span>
+                    <span>Facturas</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">report_problem</span>
+                    <span>Ticket perdido</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">payment</span>
+                    <span>Pagar</span>
+                </button>
+            </div>
+
+            <!-- Main content area -->
+            <div class="pos-main">
+                <div class="pos-left">
+                    <!-- Ticket Info -->
+                    <div class="pos-ticket-info">
+                        <div class="info-row"><span class="info-label">Entrada:</span><span class="info-value"></span></div>
+                        <div class="info-row"><span class="info-label">Razón Social:</span><span class="info-value"></span></div>
+                        <div class="info-row"><span class="info-label">Hora pago:</span><span class="info-value"></span></div>
+                        <div class="info-row"><span class="info-label">Documento:</span><span class="info-value"></span></div>
+                        <div class="info-row"><span class="info-label">Nº Ticket:</span><span class="info-value"></span></div>
+                        <div class="info-row"><span class="info-label">Teléfono:</span><span class="info-value"></span></div>
+                        <div class="info-row"><span class="info-label">Cajero:</span><span class="info-value">cajero</span></div>
+                        <div class="info-row"><span class="info-label">Tasa BCV:</span><span class="info-value">393.2216</span></div>
+                    </div>
+
+                    <!-- Cart Table -->
+                    <table class="pos-cart-table">
+                        <thead>
+                            <tr>
+                                <th>SKU</th>
+                                <th>N° Ticket</th>
+                                <th>Nombre</th>
+                                <th>Cantidad</th>
+                                <th>Precio</th>
+                                <th>IVA</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pos-cart-body">
+                            <!-- Empty cart -->
+                        </tbody>
+                    </table>
+
+                    <!-- Totals -->
+                    <div class="pos-totals-section">
+                        <div class="pos-totals-grid">
+                            <div class="header-row"></div>
+                            <div class="header-row bs">Bs.</div>
+                            <div class="header-row ref" style="color: var(--pos-green-ref);">Ref.</div>
+
+                            <div class="label">IGTF:</div>
+                            <div class="bs">0,00</div>
+                            <div class="ref">0,00</div>
+
+                            <div class="label">I.V.A. :</div>
+                            <div class="bs">0,00</div>
+                            <div class="ref">0,00</div>
+
+                            <div class="label">Subtotal:</div>
+                            <div class="bs">0,00</div>
+                            <div class="ref">0,00</div>
+                        </div>
+                        <div class="pos-total-bar">
+                            <span class="total-label">Total :</span>
+                            <div>
+                                <div class="total-amount">Bs 0,00</div>
+                                <div class="total-ref">Ref. 0,00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Panel -->
+                <div class="pos-right">
+                    <div class="pos-image-box">
+                        <span class="material-icons-round">image</span>
+                    </div>
+                    <div class="pos-image-box">
+                        <span class="material-icons-round">image</span>
+                    </div>
+                    <div class="pos-image-box">
+                        <span class="material-icons-round">image</span>
+                    </div>
+                    <div class="pos-image-box plate">
+                        <span class="material-icons-round">directions_car</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             RESET CONFIG VIEW
+             ============================================================ -->
+        <div id="pos-config-view" class="pos-config-view">
+            <div class="pos-config-header">
+                <button class="pos-config-back" onclick="showPosMainView()">
+                    <span class="material-icons-round">arrow_back</span>
+                </button>
+                <h2>Restablecer Configuraciones</h2>
+            </div>
+            <div class="pos-config-body">
+                <!-- GROUP 1: MEGASOFT -->
+                <div class="config-group">
+                    <div class="config-group-title">
+                        <span class="material-icons-round" style="font-size: 20px;">developer_board</span>
+                        Megasoft
+                    </div>
+                    <div class="config-buttons-grid">
+                        <!-- 1. Configurar Megasoft -->
+                        <button class="config-btn" id="cfg-megasoft-config" onclick="openModal('modal-megasoft-config')">
+                            <span class="btn-badge modal-badge">Modal</span>
+                            <div class="btn-icon megasoft">
+                                <span class="material-icons-round">settings</span>
+                            </div>
+                            <span class="btn-title">Configurar Megasoft</span>
+                            <span class="btn-subtitle">Establecer parámetros de conexión</span>
+                        </button>
+
+                        <!-- 2. Reiniciar Servicio -->
+                        <button class="config-btn" id="cfg-megasoft-restart" onclick="runAutonomousAction('restart-megasoft', this)">
+                            <span class="btn-badge auto-badge">Auto</span>
+                            <div class="btn-icon warning">
+                                <span class="material-icons-round">restart_alt</span>
+                            </div>
+                            <span class="btn-title">Reiniciar Servicio</span>
+                            <span class="btn-subtitle">Para fallas intermitentes</span>
+                            <div class="status-indicator">
+                                <div class="spinner-small"></div>
+                                <span>Reiniciando...</span>
+                            </div>
+                        </button>
+
+                        <!-- 3. Restablecer / Reinstalar -->
+                        <button class="config-btn" id="cfg-megasoft-reinstall" onclick="confirmAction('reinstall-megasoft')">
+                            <span class="btn-badge auto-badge">Auto</span>
+                            <div class="btn-icon danger">
+                                <span class="material-icons-round">build_circle</span>
+                            </div>
+                            <span class="btn-title">Restablecer / Reinstalar</span>
+                            <span class="btn-subtitle">Para fallas graves</span>
+                            <div class="status-indicator">
+                                <div class="spinner-small"></div>
+                                <span>Reinstalando...</span>
+                            </div>
+                        </button>
+
+                        <!-- 4. Probar Conexión -->
+                        <button class="config-btn" id="cfg-megasoft-test" onclick="runAutonomousAction('test-megasoft', this)">
+                            <span class="btn-badge auto-badge">Auto</span>
+                            <div class="btn-icon success">
+                                <span class="material-icons-round">wifi_tethering</span>
+                            </div>
+                            <span class="btn-title">Probar Conexión</span>
+                            <span class="btn-subtitle">Verificar conexión completa</span>
+                            <div class="status-indicator">
+                                <div class="spinner-small"></div>
+                                <span>Probando...</span>
+                            </div>
+                        </button>
+
+                        <!-- 5. Probar Proceso de Pago -->
+                        <button class="config-btn" id="cfg-megasoft-payment" onclick="openModal('modal-payment-test')">
+                            <span class="btn-badge modal-badge">Modal</span>
+                            <div class="btn-icon megasoft">
+                                <span class="material-icons-round">credit_card</span>
+                            </div>
+                            <span class="btn-title">Probar Proceso de Pago</span>
+                            <span class="btn-subtitle">Simular transacción de prueba</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- GROUP 2: IMPRESORA FISCAL -->
+                <div class="config-group">
+                    <div class="config-group-title">
+                        <span class="material-icons-round" style="font-size: 20px;">print</span>
+                        Impresora Fiscal
+                    </div>
+                    <div class="config-buttons-grid">
+                        <!-- 1. Configuración de Impresora -->
+                        <button class="config-btn" id="cfg-printer-config" onclick="openModal('modal-printer-config')">
+                            <span class="btn-badge modal-badge">Modal</span>
+                            <div class="btn-icon printer">
+                                <span class="material-icons-round">settings_suggest</span>
+                            </div>
+                            <span class="btn-title">Configuración de Impresora</span>
+                            <span class="btn-subtitle">Puerto, baudrate y modelo</span>
+                        </button>
+
+                        <!-- 2. Pruebas de Impresora -->
+                        <button class="config-btn" id="cfg-printer-tests" onclick="openModal('modal-printer-tests')">
+                            <span class="btn-badge modal-badge">Modal</span>
+                            <div class="btn-icon printer">
+                                <span class="material-icons-round">print_connect</span>
+                            </div>
+                            <span class="btn-title">Pruebas de Impresora</span>
+                            <span class="btn-subtitle">Imprimir facturas, NC, reportes</span>
+                        </button>
+
+                        <!-- 3. Pruebas de Conexión -->
+                        <button class="config-btn" id="cfg-printer-connection" onclick="runPrinterConnectionTests()">
+                            <span class="btn-badge auto-badge">Auto</span>
+                            <div class="btn-icon success">
+                                <span class="material-icons-round">cable</span>
+                            </div>
+                            <span class="btn-title">Pruebas de Conexión</span>
+                            <span class="btn-subtitle">Pruebas automáticas secuenciales</span>
+                            <div class="status-indicator">
+                                <div class="spinner-small"></div>
+                                <span>Probando...</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Sequential tests result area -->
+                    <div class="test-sequence-container" id="printer-test-sequence">
+                        <div class="test-step pending" data-step="0">
+                            <div class="step-icon"><span class="material-icons-round">hourglass_empty</span></div>
+                            <span class="step-text">Detectando puerto COM...</span>
+                            <span class="step-result"></span>
+                        </div>
+                        <div class="test-step pending" data-step="1">
+                            <div class="step-icon"><span class="material-icons-round">hourglass_empty</span></div>
+                            <span class="step-text">Verificando baudrate...</span>
+                            <span class="step-result"></span>
+                        </div>
+                        <div class="test-step pending" data-step="2">
+                            <div class="step-icon"><span class="material-icons-round">hourglass_empty</span></div>
+                            <span class="step-text">Enviando comando de status...</span>
+                            <span class="step-result"></span>
+                        </div>
+                        <div class="test-step pending" data-step="3">
+                            <div class="step-icon"><span class="material-icons-round">hourglass_empty</span></div>
+                            <span class="step-text">Leyendo información del equipo...</span>
+                            <span class="step-result"></span>
+                        </div>
+                        <div class="test-step pending" data-step="4">
+                            <div class="step-icon"><span class="material-icons-round">hourglass_empty</span></div>
+                            <span class="step-text">Verificando papel disponible...</span>
+                            <span class="step-result"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- POS Footer -->
+        <div class="pos-footer">
+            <span>GStore POS 2.0.27</span>
+            <span>Copyright © 2026 Deepcompany Servicios Online C.A. J-405296062</span>
+            <div class="pos-footer-brand">
+                Powered by
+                <strong>Deepcompany</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         POS SIDEBAR (overlay)
+         ============================================================ -->
+    <div class="pos-sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="pos-sidebar" id="pos-sidebar">
+        <div class="pos-sidebar-header">
+            <h3>GStore POS</h3>
+            <p>Sistema de Punto de Venta</p>
+        </div>
+        <div class="pos-sidebar-menu">
+            <button class="pos-sidebar-item" onclick="closeSidebarAndAction('main')">
+                <span class="material-icons-round">home</span>
+                Inicio
+            </button>
+            <button class="pos-sidebar-item" onclick="closeSidebarAndAction('main')">
+                <span class="material-icons-round">receipt_long</span>
+                Historial de Ventas
+            </button>
+            <button class="pos-sidebar-item" onclick="closeSidebarAndAction('main')">
+                <span class="material-icons-round">bar_chart</span>
+                Reportes
+            </button>
+            <div class="pos-sidebar-divider"></div>
+            <button class="pos-sidebar-item" onclick="closeSidebarAndAction('config')">
+                <span class="material-icons-round">build</span>
+                Restablecer Configuraciones
+            </button>
+            <button class="pos-sidebar-item" onclick="closeSidebarAndAction('main')">
+                <span class="material-icons-round">tune</span>
+                Preferencias
+            </button>
+            <div class="pos-sidebar-divider"></div>
+        </div>
+        <div class="pos-sidebar-footer">
+            <button onclick="closeSidebarAndAction('hub')">
+                <span class="material-icons-round">logout</span>
+                Volver al Hub
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         MODALS
+         ============================================================ -->
+
+    <!-- MODAL: Configurar Megasoft -->
+    <div class="modal-overlay" id="modal-megasoft-config">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Configuración de Megasoft</h3>
+                <button class="modal-close" onclick="closeModal('modal-megasoft-config')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="mega-host">Host / IP del servidor</label>
+                    <input type="text" id="mega-host" class="form-input" placeholder="127.0.0.1" value="127.0.0.1">
+                </div>
+                <div class="form-group">
+                    <label for="mega-port">Puerto</label>
+                    <input type="number" id="mega-port" class="form-input" placeholder="8080" value="8080">
+                </div>
+                <div class="form-group">
+                    <label for="mega-token">Token / Clave de autorización</label>
+                    <input type="password" id="mega-token" class="form-input" placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label for="mega-mode">Modo de operación</label>
+                    <select id="mega-mode" class="form-select">
+                        <option value="production">Producción</option>
+                        <option value="test" selected>Pruebas</option>
+                    </select>
+                </div>
+                <div class="modal-result" id="mega-config-result"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-megasoft-config')">Cancelar</button>
+                <button class="btn-primary" onclick="saveMegasoftConfig()">Guardar Configuración</button>
+                <button class="btn-success" onclick="startMegasoft()">
+                    <span class="material-icons-round" style="font-size:18px;vertical-align:middle;margin-right:4px;">play_arrow</span>
+                    Iniciar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Probar Proceso de Pago -->
+    <div class="modal-overlay" id="modal-payment-test">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Prueba de Proceso de Pago</h3>
+                <button class="modal-close" onclick="closeModal('modal-payment-test')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="pay-amount">Monto de prueba (Ref.)</label>
+                    <input type="number" id="pay-amount" class="form-input" placeholder="1.00" value="1.00" step="0.01" min="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="pay-method">Método de pago</label>
+                    <select id="pay-method" class="form-select">
+                        <option value="debit">Tarjeta de Débito</option>
+                        <option value="credit">Tarjeta de Crédito</option>
+                    </select>
+                </div>
+                <div class="modal-result" id="payment-result"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-payment-test')">Cancelar</button>
+                <button class="btn-primary" onclick="runPaymentTest()">
+                    <span class="material-icons-round" style="font-size:18px;vertical-align:middle;margin-right:4px;">play_arrow</span>
+                    Ejecutar Prueba
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Configuración de Impresora -->
+    <div class="modal-overlay" id="modal-printer-config">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Configuración de Impresora Fiscal</h3>
+                <button class="modal-close" onclick="closeModal('modal-printer-config')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="printer-port">Puerto COM</label>
+                    <select id="printer-port" class="form-select">
+                        <option value="">-- Seleccionar --</option>
+                        <option value="COM1">COM1</option>
+                        <option value="COM2">COM2</option>
+                        <option value="COM3">COM3</option>
+                        <option value="COM4">COM4</option>
+                        <option value="COM5">COM5</option>
+                        <option value="COM6">COM6</option>
+                        <option value="COM7">COM7</option>
+                        <option value="COM8">COM8</option>
+                        <option value="COM9">COM9</option>
+                        <option value="COM10">COM10</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="printer-baud">Baudrate</label>
+                    <select id="printer-baud" class="form-select">
+                        <option value="9600" selected>9600</option>
+                        <option value="19200">19200</option>
+                        <option value="38400">38400</option>
+                        <option value="57600">57600</option>
+                        <option value="115200">115200</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="printer-model">Modelo de impresora</label>
+                    <select id="printer-model" class="form-select">
+                        <option value="">-- Seleccionar --</option>
+                        <option value="bixolon-350">Bixolon SRP-350</option>
+                        <option value="hka80">HKA-80</option>
+                        <option value="pnp">PnP (The Factory)</option>
+                        <option value="tfhka">TFHKA</option>
+                    </select>
+                </div>
+                <div class="modal-result" id="printer-config-result"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="autoDetectPrinter()">
+                    <span class="material-icons-round" style="font-size:18px;vertical-align:middle;margin-right:4px;">autorenew</span>
+                    Detectar
+                </button>
+                <button class="btn-primary" onclick="savePrinterConfig()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Pruebas de Impresora -->
+    <div class="modal-overlay" id="modal-printer-tests">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Pruebas de Impresora Fiscal</h3>
+                <button class="modal-close" onclick="closeModal('modal-printer-tests')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="print-btn-grid">
+                    <button class="print-btn" onclick="simulatePrint('Última Factura', this)">
+                        <span class="material-icons-round">receipt</span>
+                        <span class="print-label">Última Factura</span>
+                    </button>
+                    <button class="print-btn" onclick="simulatePrint('Última Nota de Crédito', this)">
+                        <span class="material-icons-round">receipt_long</span>
+                        <span class="print-label">Última Nota de Crédito</span>
+                    </button>
+                    <button class="print-btn" onclick="simulatePrint('Reporte X', this)">
+                        <span class="material-icons-round">assessment</span>
+                        <span class="print-label">Reporte X</span>
+                    </button>
+                    <button class="print-btn" onclick="simulatePrint('Reporte Z', this)">
+                        <span class="material-icons-round">summarize</span>
+                        <span class="print-label">Reporte Z</span>
+                    </button>
+                </div>
+                <div class="modal-result" id="print-test-result"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-printer-tests')">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONFIRMATION DIALOG -->
+    <div class="confirm-dialog" id="confirm-dialog">
+        <div class="confirm-card">
+            <div class="confirm-icon">
+                <span class="material-icons-round">warning</span>
+            </div>
+            <h4 id="confirm-title">¿Confirmar acción?</h4>
+            <p id="confirm-message">Esta acción no se puede deshacer.</p>
+            <div class="confirm-actions">
+                <button class="btn-secondary" onclick="closeConfirmDialog()">Cancelar</button>
+                <button class="btn-danger" id="confirm-ok-btn" onclick="executeConfirmedAction()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         JAVASCRIPT
+         ============================================================ -->
+    <script>
+        // ============================
+        // STATE
+        // ============================
+        let currentScreen = 'hub';
+        let currentPosView = 'main'; // 'main' or 'config'
+        let pendingConfirmAction = null;
+
+        // ============================
+        // NAVIGATION
+        // ============================
+        function navigateTo(screen) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById(screen + '-screen');
+            if (target) {
+                target.classList.add('active');
+                currentScreen = screen;
+            }
+        }
+
+        // ============================
+        // SIDEBAR
+        // ============================
+        function toggleSidebar() {
+            const sidebar = document.getElementById('pos-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+        }
+
+        function closeSidebarAndAction(action) {
+            toggleSidebar();
+            setTimeout(() => {
+                if (action === 'config') {
+                    showConfigView();
+                } else if (action === 'hub') {
+                    showPosMainView();
+                    navigateTo('hub');
+                } else {
+                    showPosMainView();
+                }
+            }, 200);
+        }
+
+        // ============================
+        // POS VIEWS
+        // ============================
+        function showConfigView() {
+            document.getElementById('pos-main-view').classList.remove('active');
+            document.getElementById('pos-main-view').style.display = 'none';
+            const cv = document.getElementById('pos-config-view');
+            cv.classList.add('active');
+            cv.style.display = 'flex';
+            currentPosView = 'config';
+        }
+
+        function showPosMainView() {
+            document.getElementById('pos-config-view').classList.remove('active');
+            document.getElementById('pos-config-view').style.display = 'none';
+            const mv = document.getElementById('pos-main-view');
+            mv.classList.add('active');
+            mv.style.display = 'flex';
+            currentPosView = 'main';
+            // Reset sequential tests
+            resetPrinterTests();
+        }
+
+        // ============================
+        // MODALS
+        // ============================
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('open');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('open');
+            // Clear results
+            const results = document.getElementById(modalId)?.querySelectorAll('.modal-result');
+            results?.forEach(r => { r.classList.remove('visible', 'success', 'error', 'info'); r.textContent = ''; });
+        }
+
+        // Close modals on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.classList.remove('open');
+            });
+        });
+
+        // ============================
+        // TOASTS
+        // ============================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icons = { success: 'check_circle', error: 'error', info: 'info', warning: 'warning' };
+            toast.innerHTML = `<span class="material-icons-round" style="font-size:20px;">${icons[type]}</span>${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3800);
+        }
+
+        // ============================
+        // CONFIRMATION DIALOG
+        // ============================
+        function confirmAction(action) {
+            pendingConfirmAction = action;
+            const dialog = document.getElementById('confirm-dialog');
+            const title = document.getElementById('confirm-title');
+            const message = document.getElementById('confirm-message');
+
+            if (action === 'reinstall-megasoft') {
+                title.textContent = '¿Restablecer Megasoft?';
+                message.textContent = 'Se restablecerá/reinstalará completamente Megasoft. Este proceso puede tomar varios minutos. ¿Desea continuar?';
+            }
+
+            dialog.classList.add('open');
+        }
+
+        function closeConfirmDialog() {
+            document.getElementById('confirm-dialog').classList.remove('open');
+            pendingConfirmAction = null;
+        }
+
+        function executeConfirmedAction() {
+            const action = pendingConfirmAction;
+            closeConfirmDialog();
+
+            if (action === 'reinstall-megasoft') {
+                const btn = document.getElementById('cfg-megasoft-reinstall');
+                runAutonomousAction('reinstall-megasoft', btn);
+            }
+        }
+
+        // ============================
+        // AUTONOMOUS ACTIONS (Simulated)
+        // ============================
+        async function runAutonomousAction(actionId, btnElement) {
+            btnElement.classList.add('running');
+
+            // Simulate async operation
+            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+            const actions = {
+                'restart-megasoft': {
+                    duration: 2500,
+                    successMsg: 'Servicio de Megasoft reiniciado correctamente',
+                    successRate: 0.85
+                },
+                'reinstall-megasoft': {
+                    duration: 5000,
+                    successMsg: 'Megasoft restablecido/reinstalado correctamente',
+                    successRate: 0.9
+                },
+                'test-megasoft': {
+                    duration: 3000,
+                    successMsg: 'Conexión con Megasoft verificada ✓ Latencia: 12ms',
+                    successRate: 0.8
+                }
+            };
+
+            const config = actions[actionId];
+            if (!config) return;
+
+            await delay(config.duration);
+
+            btnElement.classList.remove('running');
+
+            const success = Math.random() < config.successRate;
+            if (success) {
+                showToast(config.successMsg, 'success');
+            } else {
+                showToast('Error: No se pudo completar la acción. Verifique la conexión.', 'error');
+            }
+        }
+
+        // ============================
+        // MEGASOFT CONFIG ACTIONS
+        // ============================
+        function saveMegasoftConfig() {
+            const host = document.getElementById('mega-host').value;
+            const port = document.getElementById('mega-port').value;
+            const mode = document.getElementById('mega-mode').value;
+
+            if (!host || !port) {
+                showResult('mega-config-result', 'error', 'Complete todos los campos requeridos.');
+                return;
+            }
+
+            // Save to localStorage
+            const config = { host, port, token: '***', mode };
+            localStorage.setItem('megasoft-config', JSON.stringify(config));
+
+            showResult('mega-config-result', 'success', `Configuración guardada: ${host}:${port} (modo ${mode})`);
+            showToast('Configuración de Megasoft guardada', 'success');
+        }
+
+        function startMegasoft() {
+            const result = document.getElementById('mega-config-result');
+            showResult('mega-config-result', 'info', '⏳ Iniciando servicio de Megasoft...');
+
+            setTimeout(() => {
+                const success = Math.random() > 0.2;
+                if (success) {
+                    showResult('mega-config-result', 'success', '✅ Megasoft iniciado correctamente. Servicio activo en el puerto configurado.');
+                    showToast('Megasoft iniciado correctamente', 'success');
+                } else {
+                    showResult('mega-config-result', 'error', '❌ Error al iniciar Megasoft. Verifique la configuración y el puerto.');
+                    showToast('Error al iniciar Megasoft', 'error');
+                }
+            }, 2000);
+        }
+
+        // ============================
+        // PAYMENT TEST
+        // ============================
+        function runPaymentTest() {
+            const amount = document.getElementById('pay-amount').value;
+            const method = document.getElementById('pay-method').value;
+
+            if (!amount || amount <= 0) {
+                showResult('payment-result', 'error', 'Ingrese un monto válido.');
+                return;
+            }
+
+            showResult('payment-result', 'info', '⏳ Procesando transacción de prueba...');
+
+            setTimeout(() => {
+                const success = Math.random() > 0.15;
+                const methodLabel = method === 'debit' ? 'Débito' : 'Crédito';
+                if (success) {
+                    const refNum = 'REF-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+                    showResult('payment-result', 'success',
+                        `✅ Transacción exitosa\n` +
+                        `Monto: Ref. ${parseFloat(amount).toFixed(2)}\n` +
+                        `Método: Tarjeta de ${methodLabel}\n` +
+                        `Referencia: ${refNum}\n` +
+                        `Fecha: ${new Date().toLocaleString('es-VE')}`
+                    );
+                    showToast('Prueba de pago exitosa', 'success');
+                } else {
+                    showResult('payment-result', 'error',
+                        `❌ Transacción rechazada\n` +
+                        `Código de error: E-402\n` +
+                        `Motivo: Timeout en la comunicación con el terminal`
+                    );
+                    showToast('Prueba de pago fallida', 'error');
+                }
+            }, 3000);
+        }
+
+        // ============================
+        // PRINTER CONFIG ACTIONS
+        // ============================
+        function savePrinterConfig() {
+            const port = document.getElementById('printer-port').value;
+            const baud = document.getElementById('printer-baud').value;
+            const model = document.getElementById('printer-model').value;
+
+            if (!port || !model) {
+                showResult('printer-config-result', 'error', 'Seleccione puerto COM y modelo de impresora.');
+                return;
+            }
+
+            const config = { port, baud, model };
+            localStorage.setItem('printer-config', JSON.stringify(config));
+
+            showResult('printer-config-result', 'success', `Configuración guardada: ${model} en ${port} @ ${baud} baud`);
+            showToast('Configuración de impresora guardada', 'success');
+        }
+
+        function autoDetectPrinter() {
+            showResult('printer-config-result', 'info', '⏳ Buscando impresora fiscal en puertos COM...');
+
+            setTimeout(() => {
+                const detected = Math.random() > 0.3;
+                if (detected) {
+                    document.getElementById('printer-port').value = 'COM3';
+                    document.getElementById('printer-baud').value = '9600';
+                    document.getElementById('printer-model').value = 'hka80';
+                    showResult('printer-config-result', 'success', '✅ Impresora detectada: HKA-80 en COM3 @ 9600 baud');
+                    showToast('Impresora detectada automáticamente', 'success');
+                } else {
+                    showResult('printer-config-result', 'error', '❌ No se detectó ninguna impresora fiscal. Verifique la conexión física.');
+                    showToast('No se detectó impresora', 'warning');
+                }
+            }, 2500);
+        }
+
+        // ============================
+        // PRINTER PRINT TESTS
+        // ============================
+        function simulatePrint(docType, btnElement) {
+            const origText = btnElement.querySelector('.print-label').textContent;
+            btnElement.querySelector('.print-label').textContent = 'Imprimiendo...';
+            btnElement.style.pointerEvents = 'none';
+            btnElement.style.opacity = '0.6';
+
+            setTimeout(() => {
+                const success = Math.random() > 0.1;
+                btnElement.querySelector('.print-label').textContent = origText;
+                btnElement.style.pointerEvents = '';
+                btnElement.style.opacity = '';
+
+                if (success) {
+                    showResult('print-test-result', 'success', `✅ "${docType}" enviado a impresora correctamente.`);
+                    showToast(`${docType} impresa`, 'success');
+                } else {
+                    showResult('print-test-result', 'error', `❌ Error al imprimir "${docType}". Impresora no responde.`);
+                    showToast(`Error al imprimir ${docType}`, 'error');
+                }
+            }, 1800);
+        }
+
+        // ============================
+        // PRINTER CONNECTION TESTS (Sequential)
+        // ============================
+        async function runPrinterConnectionTests() {
+            const container = document.getElementById('printer-test-sequence');
+            const btn = document.getElementById('cfg-printer-connection');
+            container.classList.add('visible');
+            btn.classList.add('running');
+
+            // Reset all steps
+            resetPrinterTests();
+            container.classList.add('visible');
+
+            const steps = container.querySelectorAll('.test-step');
+            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+            const testResults = [
+                { success: true, result: 'COM3 detectado' },
+                { success: true, result: '9600 baud OK' },
+                { success: Math.random() > 0.2, result: '' },
+                { success: Math.random() > 0.15, result: '' },
+                { success: Math.random() > 0.1, result: '' }
+            ];
+            // Set dynamic results
+            testResults[2].result = testResults[2].success ? 'Status: OK' : 'Sin respuesta';
+            testResults[3].result = testResults[3].success ? 'S/N: HKA-2024-0412' : 'Error de lectura';
+            testResults[4].result = testResults[4].success ? 'Papel disponible' : 'Sin papel';
+
+            for (let i = 0; i < steps.length; i++) {
+                // Set current to running
+                steps[i].className = 'test-step running';
+                steps[i].querySelector('.step-icon').innerHTML = '<div class="spinner-small"></div>';
+
+                await delay(1200 + Math.random() * 800);
+
+                // Check if previous step failed - cascading failure
+                if (i > 0 && steps[i - 1].classList.contains('error')) {
+                    steps[i].className = 'test-step error';
+                    steps[i].querySelector('.step-icon').innerHTML = '<span class="material-icons-round">block</span>';
+                    steps[i].querySelector('.step-result').textContent = 'Omitido';
+                    continue;
+                }
+
+                const result = testResults[i];
+                if (result.success) {
+                    steps[i].className = 'test-step success';
+                    steps[i].querySelector('.step-icon').innerHTML = '<span class="material-icons-round">check_circle</span>';
+                    steps[i].querySelector('.step-result').textContent = result.result;
+                } else {
+                    steps[i].className = 'test-step error';
+                    steps[i].querySelector('.step-icon').innerHTML = '<span class="material-icons-round">cancel</span>';
+                    steps[i].querySelector('.step-result').textContent = result.result;
+                }
+            }
+
+            btn.classList.remove('running');
+
+            // Summary toast
+            const passCount = container.querySelectorAll('.test-step.success').length;
+            const total = steps.length;
+            if (passCount === total) {
+                showToast(`Todas las pruebas pasaron (${passCount}/${total})`, 'success');
+            } else {
+                showToast(`Pruebas: ${passCount}/${total} pasaron`, passCount > total / 2 ? 'warning' : 'error');
+            }
+        }
+
+        function resetPrinterTests() {
+            const container = document.getElementById('printer-test-sequence');
+            container.classList.remove('visible');
+            container.querySelectorAll('.test-step').forEach(step => {
+                step.className = 'test-step pending';
+                step.querySelector('.step-icon').innerHTML = '<span class="material-icons-round">hourglass_empty</span>';
+                step.querySelector('.step-result').textContent = '';
+            });
+        }
+
+        // ============================
+        // UTILITIES
+        // ============================
+        function showResult(elementId, type, message) {
+            const el = document.getElementById(elementId);
+            el.className = 'modal-result visible ' + type;
+            el.textContent = message;
+            el.style.whiteSpace = 'pre-line';
+        }
+
+        // Load saved configs on startup
+        function loadSavedConfigs() {
+            const megaConfig = localStorage.getItem('megasoft-config');
+            if (megaConfig) {
+                try {
+                    const c = JSON.parse(megaConfig);
+                    document.getElementById('mega-host').value = c.host || '';
+                    document.getElementById('mega-port').value = c.port || '';
+                    document.getElementById('mega-mode').value = c.mode || 'test';
+                } catch (e) {}
+            }
+
+            const printerConfig = localStorage.getItem('printer-config');
+            if (printerConfig) {
+                try {
+                    const c = JSON.parse(printerConfig);
+                    document.getElementById('printer-port').value = c.port || '';
+                    document.getElementById('printer-baud').value = c.baud || '9600';
+                    document.getElementById('printer-model').value = c.model || '';
+                } catch (e) {}
+            }
+        }
+
+        // Init
+        loadSavedConfigs();
+    </script>
+</body>
+</html>
