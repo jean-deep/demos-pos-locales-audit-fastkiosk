@@ -1,0 +1,3553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Hub - Deepcompany</title>
+    <meta name="description" content="Plataforma de demos interactivos para sistemas Deepcompany">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        /* ================================================================
+           RESET & BASE
+           ================================================================ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { font-size: 16px; scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            background: #0a0a0f;
+            color: #e2e8f0;
+        }
+        button { cursor: pointer; border: none; background: none; font-family: inherit; }
+        input, select, textarea { font-family: inherit; }
+
+        /* ================================================================
+           SCREEN SYSTEM
+           ================================================================ */
+        .screen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        .screen.active {
+            opacity: 1;
+            pointer-events: all;
+            z-index: 1;
+        }
+
+        /* ================================================================
+           TOAST / NOTIFICATION SYSTEM
+           ================================================================ */
+        #toast-container {
+            position: fixed;
+            top: 24px; right: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 22px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #fff;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+            animation: toastIn 0.4s cubic-bezier(0.22, 1, 0.36, 1), toastOut 0.35s 3.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+            display: flex; align-items: center; gap: 10px;
+            backdrop-filter: blur(12px);
+            max-width: 380px;
+        }
+        .toast.success { background: linear-gradient(135deg, #059669cc, #10b981cc); border-left: 4px solid #34d399; }
+        .toast.error { background: linear-gradient(135deg, #dc2626cc, #ef4444cc); border-left: 4px solid #f87171; }
+        .toast.info { background: linear-gradient(135deg, #2563ebcc, #3b82f6cc); border-left: 4px solid #60a5fa; }
+        .toast.warning { background: linear-gradient(135deg, #d97706cc, #f59e0bcc); border-left: 4px solid #fbbf24; }
+        @keyframes toastIn { from { transform: translateX(120%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+        @keyframes toastOut { from { opacity:1; transform: translateX(0); } to { opacity:0; transform: translateX(120%); } }
+
+        /* ================================================================
+           HUB SCREEN
+           ================================================================ */
+        .hub-screen {
+            background: linear-gradient(145deg, #0a0a1a 0%, #0f1029 40%, #0a0a1a 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+        }
+        /* Animated background orbs */
+        .hub-screen::before, .hub-screen::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            pointer-events: none;
+        }
+        .hub-screen::before {
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, #6366f1, transparent 70%);
+            top: -100px; left: -100px;
+            animation: orbFloat 12s ease-in-out infinite alternate;
+        }
+        .hub-screen::after {
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, #06b6d4, transparent 70%);
+            bottom: -80px; right: -80px;
+            animation: orbFloat 10s ease-in-out infinite alternate-reverse;
+        }
+        @keyframes orbFloat {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(60px, -40px) scale(1.15); }
+        }
+
+        .hub-header {
+            text-align: center;
+            margin-bottom: 48px;
+            position: relative;
+            z-index: 2;
+        }
+        .hub-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #a5b4fc, #818cf8, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+            margin-bottom: 8px;
+        }
+        .hub-header p {
+            color: #64748b;
+            font-size: 1.05rem;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        .hub-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            max-width: 1000px;
+            width: 90%;
+            position: relative;
+            z-index: 2;
+        }
+
+        .hub-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 32px 28px;
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .hub-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), transparent 60%);
+            opacity: 0;
+            transition: opacity 0.35s ease;
+        }
+        .hub-card:hover {
+            border-color: rgba(99, 102, 241, 0.35);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 60px -12px rgba(99, 102, 241, 0.2);
+        }
+        .hub-card:hover::before { opacity: 1; }
+
+        .hub-card-icon {
+            width: 56px; height: 56px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 1;
+        }
+        .hub-card-icon.pos-icon {
+            background: linear-gradient(135deg, #303F9F, #1a237e);
+            color: #a5d6a7;
+        }
+        .hub-card-icon.access-icon {
+            background: linear-gradient(135deg, #00897B, #004D40);
+            color: #80cbc4;
+        }
+        .hub-card-icon.inv-icon {
+            background: linear-gradient(135deg, #E65100, #BF360C);
+            color: #ffcc02;
+        }
+
+        .hub-card h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 8px;
+            position: relative; z-index: 1;
+        }
+        .hub-card p {
+            font-size: 0.88rem;
+            color: #94a3b8;
+            line-height: 1.5;
+            position: relative; z-index: 1;
+        }
+        .hub-card .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 16px;
+            position: relative; z-index: 1;
+        }
+        .badge.active { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .badge.coming { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+
+        /* Hub footer */
+        .hub-footer {
+            position: absolute;
+            bottom: 20px;
+            text-align: center;
+            width: 100%;
+            z-index: 2;
+        }
+        .hub-footer span {
+            color: #334155;
+            font-size: 0.78rem;
+            letter-spacing: 0.5px;
+        }
+
+        /* ================================================================
+           POS SCREEN - PARKEATE
+           ================================================================ */
+        :root {
+            --pos-primary: #303F9F;
+            --pos-primary-dark: #1a237e;
+            --pos-accent: #7cb342;
+            --pos-accent-light: #9ccc65;
+            --pos-bg: #f5f5f5;
+            --pos-white: #ffffff;
+            --pos-text: #333333;
+            --pos-text-light: #757575;
+            --pos-border: #e0e0e0;
+            --pos-green-ref: #4caf50;
+        }
+        .pos-screen {
+            background: var(--pos-bg);
+            color: var(--pos-text);
+            display: flex;
+            flex-direction: column;
+            font-size: 14px;
+        }
+
+        /* POS Header */
+        .pos-header {
+            background: linear-gradient(135deg, var(--pos-primary-dark), var(--pos-primary));
+            height: 52px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 100;
+            flex-shrink: 0;
+        }
+        .pos-hamburger {
+            color: #fff;
+            font-size: 28px;
+            padding: 4px;
+            border-radius: 6px;
+            transition: background 0.2s;
+            display: flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px;
+        }
+        .pos-hamburger:hover { background: rgba(255,255,255,0.12); }
+
+        .pos-logo {
+            flex: 1;
+            text-align: center;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.7rem;
+            font-weight: 800;
+            color: var(--pos-accent);
+            letter-spacing: -0.5px;
+        }
+        .pos-logo .p-letter { color: var(--pos-accent-light); }
+
+        .pos-header-right {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .pos-header-right .material-icons-round { color: #c5cae9; font-size: 22px; }
+        .pos-status-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #4caf50;
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+        }
+
+        /* POS Toolbar */
+        .pos-toolbar {
+            background: var(--pos-white);
+            border-bottom: 2px solid var(--pos-border);
+            display: flex;
+            padding: 10px 16px;
+            gap: 6px;
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .pos-toolbar-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 14px;
+            border-radius: 10px;
+            transition: all 0.2s;
+            min-width: 80px;
+            color: var(--pos-primary);
+        }
+        .pos-toolbar-btn:hover {
+            background: rgba(48, 63, 159, 0.06);
+        }
+        .pos-toolbar-btn .material-icons-round { font-size: 24px; }
+        .pos-toolbar-btn span {
+            font-size: 0.7rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* POS Main Content */
+        .pos-main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .pos-left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 16px 20px;
+            overflow-y: auto;
+        }
+
+        /* Ticket Info */
+        .pos-ticket-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 40px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--pos-border);
+            margin-bottom: 12px;
+        }
+        .pos-ticket-info .info-row {
+            display: flex;
+            gap: 6px;
+            font-size: 0.82rem;
+        }
+        .pos-ticket-info .info-label { color: var(--pos-text); font-weight: 500; }
+        .pos-ticket-info .info-value { color: var(--pos-text-light); }
+
+        /* Cart Table */
+        .pos-cart-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+        .pos-cart-table thead th {
+            text-align: left;
+            padding: 10px 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--pos-text);
+            border-bottom: 2px solid var(--pos-border);
+        }
+        .pos-cart-table tbody td {
+            padding: 8px;
+            font-size: 0.82rem;
+            color: var(--pos-text-light);
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .pos-cart-table tbody tr:hover { background: rgba(48, 63, 159, 0.02); }
+
+        /* Totals */
+        .pos-totals-section {
+            margin-top: auto;
+            border-top: 2px solid var(--pos-border);
+            padding-top: 10px;
+        }
+        .pos-totals-grid {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 2px 20px;
+            font-size: 0.85rem;
+            align-items: center;
+        }
+        .pos-totals-grid .label { font-weight: 500; }
+        .pos-totals-grid .bs { text-align: right; }
+        .pos-totals-grid .ref { text-align: right; color: var(--pos-green-ref); }
+        .pos-totals-grid .header-row {
+            font-weight: 600;
+            font-size: 0.78rem;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--pos-border);
+            margin-bottom: 4px;
+        }
+
+        .pos-total-bar {
+            background: linear-gradient(135deg, #37474f, #455a64);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+        .pos-total-bar .total-label {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        .pos-total-bar .total-amount {
+            font-size: 1.2rem;
+            font-weight: 800;
+        }
+        .pos-total-bar .total-ref {
+            font-size: 0.82rem;
+            color: var(--pos-green-ref);
+            text-align: right;
+        }
+
+        /* Right panel - images */
+        .pos-right {
+            width: 320px;
+            padding: 16px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .pos-image-box {
+            background: #ddd;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+        .pos-image-box .material-icons-round {
+            font-size: 48px;
+            color: #999;
+        }
+        .pos-image-box.plate {
+            border: 3px solid #bdbdbd;
+        }
+        .pos-image-box.plate::after {
+            content: 'ABC - 123';
+            position: absolute;
+            bottom: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #555;
+            background: rgba(255,255,255,0.85);
+            padding: 2px 10px;
+            border-radius: 4px;
+        }
+
+        /* POS Footer */
+        .pos-footer {
+            background: var(--pos-white);
+            border-top: 1px solid var(--pos-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 20px;
+            font-size: 0.75rem;
+            color: var(--pos-text-light);
+            flex-shrink: 0;
+        }
+        .pos-footer-brand {
+            display: flex; align-items: center; gap: 8px;
+            font-weight: 600;
+            color: var(--pos-primary);
+        }
+
+        /* ================================================================
+           POS SIDEBAR
+           ================================================================ */
+        .pos-sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 500;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .pos-sidebar-overlay.open { opacity: 1; pointer-events: all; }
+
+        .pos-sidebar {
+            position: fixed;
+            top: 0; left: 0;
+            width: 300px;
+            height: 100%;
+            background: var(--pos-white);
+            z-index: 501;
+            transform: translateX(-100%);
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+        }
+        .pos-sidebar.open { transform: translateX(0); }
+
+        .pos-sidebar-header {
+            background: linear-gradient(135deg, var(--pos-primary-dark), var(--pos-primary));
+            padding: 20px;
+            color: #fff;
+        }
+        .pos-sidebar-header h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+        .pos-sidebar-header p {
+            font-size: 0.78rem;
+            color: #c5cae9;
+            margin-top: 4px;
+        }
+
+        .pos-sidebar-menu {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 0;
+        }
+        .pos-sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 20px;
+            font-size: 0.92rem;
+            font-weight: 500;
+            color: var(--pos-text);
+            transition: all 0.2s;
+            width: 100%;
+            text-align: left;
+        }
+        .pos-sidebar-item:hover { background: rgba(48, 63, 159, 0.06); color: var(--pos-primary); }
+        .pos-sidebar-item .material-icons-round { font-size: 22px; color: var(--pos-primary); opacity: 0.7; }
+
+        .pos-sidebar-divider {
+            height: 1px;
+            background: var(--pos-border);
+            margin: 8px 20px;
+        }
+
+        .pos-sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--pos-border);
+        }
+        .pos-sidebar-footer button {
+            display: flex; align-items: center; gap: 10px;
+            color: #ef4444;
+            font-weight: 500;
+            font-size: 0.9rem;
+            padding: 10px 0;
+            width: 100%;
+        }
+        .pos-sidebar-footer button:hover { opacity: 0.8; }
+
+        /* ================================================================
+           RESET CONFIG VIEW
+           ================================================================ */
+        .pos-config-view {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .pos-config-view.active { display: flex; }
+
+        .pos-config-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 24px;
+            background: var(--pos-white);
+            border-bottom: 2px solid var(--pos-border);
+            flex-shrink: 0;
+        }
+        .pos-config-back {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--pos-primary);
+            transition: background 0.2s;
+        }
+        .pos-config-back:hover { background: rgba(48,63,159,0.08); }
+        .pos-config-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--pos-text);
+        }
+
+        .pos-config-body {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .config-group {
+            margin-bottom: 32px;
+        }
+        .config-group-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--pos-primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+        .config-group-title::after {
+            content: '';
+            flex: 1;
+            height: 2px;
+            background: linear-gradient(90deg, var(--pos-primary), transparent);
+            opacity: 0.2;
+        }
+
+        .config-buttons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 14px;
+        }
+
+        .config-btn {
+            background: var(--pos-white);
+            border: 2px solid var(--pos-border);
+            border-radius: 14px;
+            padding: 20px 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            text-align: center;
+            transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+            overflow: hidden;
+            min-height: 120px;
+            justify-content: center;
+        }
+        .config-btn:hover {
+            border-color: var(--pos-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(48, 63, 159, 0.12);
+        }
+        .config-btn:active { transform: translateY(0) scale(0.98); }
+
+        .config-btn .btn-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+        }
+        .config-btn .btn-icon.megasoft { background: linear-gradient(135deg, #1565c0, #1976d2); color: #fff; }
+        .config-btn .btn-icon.printer { background: linear-gradient(135deg, #6a1b9a, #8e24aa); color: #fff; }
+        .config-btn .btn-icon.danger { background: linear-gradient(135deg, #c62828, #e53935); color: #fff; }
+        .config-btn .btn-icon.success { background: linear-gradient(135deg, #2e7d32, #43a047); color: #fff; }
+        .config-btn .btn-icon.warning { background: linear-gradient(135deg, #e65100, #f57c00); color: #fff; }
+
+        .config-btn .btn-title {
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: var(--pos-text);
+        }
+        .config-btn .btn-subtitle {
+            font-size: 0.72rem;
+            color: var(--pos-text-light);
+        }
+        .config-btn .btn-badge {
+            position: absolute;
+            top: 8px; right: 8px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-badge.modal-badge { background: rgba(48,63,159,0.1); color: var(--pos-primary); }
+        .btn-badge.auto-badge { background: rgba(76,175,80,0.1); color: #2e7d32; }
+
+        /* Config button status animation */
+        .config-btn .status-indicator {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        .config-btn.running .status-indicator { display: flex; }
+        .config-btn.running { pointer-events: none; opacity: 0.85; }
+
+        .spinner-small {
+            width: 16px; height: 16px;
+            border: 2px solid rgba(48,63,159,0.2);
+            border-top-color: var(--pos-primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ================================================================
+           SEQUENTIAL TESTS VIEW
+           ================================================================ */
+        .test-sequence-container {
+            background: var(--pos-white);
+            border: 2px solid var(--pos-border);
+            border-radius: 14px;
+            padding: 20px;
+            margin-top: 14px;
+            display: none;
+        }
+        .test-sequence-container.visible { display: block; }
+        .test-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f5f5f5;
+            font-size: 0.88rem;
+        }
+        .test-step:last-child { border-bottom: none; }
+        .test-step .step-icon {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .test-step.pending .step-icon { background: #f5f5f5; color: #bdbdbd; }
+        .test-step.running .step-icon { background: #e3f2fd; color: #1976d2; }
+        .test-step.running .step-icon .spinner-small { width: 14px; height: 14px; border-width: 2px; }
+        .test-step.success .step-icon { background: #e8f5e9; color: #43a047; }
+        .test-step.error .step-icon { background: #fce4ec; color: #e53935; }
+        .test-step .step-text { font-weight: 500; color: var(--pos-text); }
+        .test-step.pending .step-text { color: #bdbdbd; }
+        .test-step .step-result {
+            margin-left: auto;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .test-step.success .step-result { color: #43a047; }
+        .test-step.error .step-result { color: #e53935; }
+
+        /* ================================================================
+           MODAL SYSTEM
+           ================================================================ */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+        .modal-card {
+            background: var(--pos-white);
+            border-radius: 18px;
+            width: 90%;
+            max-width: 520px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+            transform: translateY(20px) scale(0.95);
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .modal-overlay.open .modal-card { transform: translateY(0) scale(1); }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--pos-border);
+        }
+        .modal-header h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--pos-text);
+        }
+        .modal-close {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--pos-text-light);
+            transition: all 0.2s;
+            font-size: 20px;
+        }
+        .modal-close:hover { background: #f5f5f5; color: var(--pos-text); }
+
+        .modal-body { padding: 24px; }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--pos-border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Form elements */
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--pos-text);
+            margin-bottom: 6px;
+        }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--pos-border);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: var(--pos-text);
+            background: var(--pos-white);
+            transition: border-color 0.2s;
+            outline: none;
+        }
+        .form-input:focus, .form-select:focus {
+            border-color: var(--pos-primary);
+            box-shadow: 0 0 0 3px rgba(48, 63, 159, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--pos-primary), var(--pos-primary-dark));
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(48, 63, 159, 0.3); }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: var(--pos-text);
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: #eeeeee; }
+
+        .btn-success {
+            background: linear-gradient(135deg, #2e7d32, #43a047);
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-success:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(46, 125, 50, 0.3); }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #c62828, #e53935);
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(198, 40, 40, 0.3); }
+
+        /* Modal printer test buttons */
+        .print-btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .print-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 20px 14px;
+            border: 2px solid var(--pos-border);
+            border-radius: 12px;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .print-btn:hover {
+            border-color: #8e24aa;
+            background: rgba(142, 36, 170, 0.04);
+        }
+        .print-btn .material-icons-round { font-size: 28px; color: #8e24aa; }
+        .print-btn .print-label { font-weight: 600; font-size: 0.85rem; color: var(--pos-text); }
+
+        /* Modal result area */
+        .modal-result {
+            margin-top: 16px;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            display: none;
+        }
+        .modal-result.visible { display: block; }
+        .modal-result.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+        .modal-result.error { background: #fce4ec; color: #c62828; border: 1px solid #ef9a9a; }
+        .modal-result.info { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+
+        /* ================================================================
+           CONFIRMATION DIALOG
+           ================================================================ */
+        .confirm-dialog {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            backdrop-filter: blur(4px);
+        }
+        .confirm-dialog.open { opacity: 1; pointer-events: all; }
+        .confirm-card {
+            background: var(--pos-white);
+            border-radius: 18px;
+            padding: 28px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+            transform: scale(0.9);
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .confirm-dialog.open .confirm-card { transform: scale(1); }
+        .confirm-card .confirm-icon {
+            width: 56px; height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px;
+        }
+        .confirm-card .confirm-icon .material-icons-round { font-size: 28px; color: #e65100; }
+        .confirm-card h4 { font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--pos-text); margin-bottom: 8px; }
+        .confirm-card p { font-size: 0.88rem; color: var(--pos-text-light); line-height: 1.5; margin-bottom: 24px; }
+        .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+
+        /* ================================================================
+           ANIMATIONS
+           ================================================================ */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-up {
+            animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        .delay-1 { animation-delay: 0.1s; opacity: 0; }
+        .delay-2 { animation-delay: 0.2s; opacity: 0; }
+        .delay-3 { animation-delay: 0.3s; opacity: 0; }
+
+        /* ================================================================
+           SOPORTE LOCAL SCREEN (MOBILE DEMO)
+           ================================================================ */
+        .sl-screen {
+            background: #1a1a2e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Phone frame container */
+        .sl-phone-frame {
+            width: 390px;
+            height: 844px;
+            max-height: 95vh;
+            background: #000;
+            border-radius: 44px;
+            border: 3px solid #333;
+            overflow: hidden;
+            box-shadow:
+                0 0 0 2px #1a1a1a,
+                0 40px 80px rgba(0,0,0,0.5),
+                inset 0 0 0 1px rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        /* Phone notch area */
+        .sl-phone-notch {
+            background: #000;
+            height: 50px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            padding: 0 28px 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #fff;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .sl-phone-notch::after {
+            content: '';
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90px;
+            height: 24px;
+            background: #1a1a1a;
+            border-radius: 20px;
+        }
+        .sl-notch-right {
+            display: flex; gap: 4px; align-items: center;
+        }
+        .sl-notch-right .material-icons-round { font-size: 15px; }
+        .sl-battery { width: 22px; height: 10px; border: 1.5px solid #fff; border-radius: 2px; position: relative; }
+        .sl-battery::before { content: ''; position: absolute; right: -4px; top: 2px; width: 2px; height: 5px; background: #fff; border-radius: 0 1px 1px 0; }
+        .sl-battery::after { content: ''; position: absolute; left: 1px; top: 1px; width: 70%; height: calc(100% - 2px); background: #4caf50; border-radius: 1px; }
+
+        /* App content inside phone */
+        .sl-app {
+            flex: 1;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-radius: 0 0 40px 40px;
+        }
+
+        /* SL Header */
+        .sl-header {
+            background: linear-gradient(135deg, #1a237e, #283593);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .sl-header-hamburger {
+            color: #fff;
+            display: flex; align-items: center;
+        }
+        .sl-header-hamburger .material-icons-round { font-size: 24px; }
+        .sl-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .sl-header-back {
+            color: #fff;
+            display: flex; align-items: center;
+            padding: 4px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .sl-header-back:hover { background: rgba(255,255,255,0.1); }
+
+        /* SL Content */
+        .sl-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .sl-content::-webkit-scrollbar { width: 3px; }
+        .sl-content::-webkit-scrollbar-thumb { background: #bdbdbd; border-radius: 4px; }
+
+        .sl-section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #1a237e;
+            margin-bottom: 14px;
+        }
+
+        /* Installation Accordion */
+        .sl-install-card {
+            background: #fff;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .sl-install-card.expanded { border-color: #1a237e; }
+
+        .sl-install-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s;
+        }
+        .sl-install-header:hover { background: #f5f5f5; }
+        .sl-install-header h3 {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #1a237e;
+        }
+        .sl-install-header .material-icons-round {
+            font-size: 22px;
+            color: #1a237e;
+            transition: transform 0.3s ease;
+        }
+        .sl-install-card.expanded .sl-install-header .material-icons-round {
+            transform: rotate(180deg);
+        }
+
+        .sl-install-body {
+            display: none;
+            padding: 0 16px 16px;
+        }
+        .sl-install-card.expanded .sl-install-body { display: block; }
+
+        /* Device cards inside installation */
+        .sl-device-card {
+            background: #fff;
+            border: 1.5px solid #e8e8e8;
+            border-left: 4px solid #1a237e;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .sl-device-card.offline { border-left-color: #e53935; }
+        .sl-device-card.warning { border-left-color: #ff9800; }
+
+        .sl-device-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .sl-device-name {
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: #333;
+        }
+        .sl-device-ip {
+            font-size: 0.72rem;
+            color: #757575;
+        }
+        .sl-status-badge {
+            padding: 3px 10px;
+            border-radius: 14px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .sl-status-badge.online { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+        .sl-status-badge.offline { background: #fce4ec; color: #c62828; border: 1px solid #ef9a9a; }
+
+        .sl-device-detail {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.73rem;
+            color: #555;
+            padding: 2px 0;
+        }
+        .sl-device-detail .material-icons-round { font-size: 14px; color: #1a237e; }
+        .sl-device-detail strong { color: #333; }
+
+        /* Section dividers */
+        .sl-subsection {
+            margin-top: 14px;
+            padding-top: 10px;
+            border-top: 1.5px solid #e8e8e8;
+        }
+        .sl-subsection-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #1a237e;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .sl-subsection-title .material-icons-round { font-size: 16px; }
+
+        /* System monitoring bars */
+        .sl-monitor-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 0.75rem;
+        }
+        .sl-monitor-row .sl-mon-icon { font-size: 16px; color: #1a237e; }
+        .sl-monitor-row .sl-mon-label { flex: 1; font-weight: 500; color: #555; }
+        .sl-monitor-row .sl-mon-value { font-weight: 700; color: #333; min-width: 50px; text-align: right; }
+        .sl-progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .sl-progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.6s ease;
+        }
+        .sl-progress-fill.low { background: linear-gradient(90deg, #4caf50, #66bb6a); }
+        .sl-progress-fill.med { background: linear-gradient(90deg, #ff9800, #ffb74d); }
+        .sl-progress-fill.high { background: linear-gradient(90deg, #e53935, #ef5350); }
+
+        /* Controls section */
+        .sl-controls-section {
+            margin-top: 14px;
+            padding-top: 10px;
+            border-top: 2px solid #1a237e;
+        }
+        .sl-controls-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(135deg, #1a237e, #283593);
+            padding: 8px 14px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sl-controls-title .material-icons-round { font-size: 18px; }
+
+        .sl-ctrl-group {
+            margin-bottom: 14px;
+        }
+        .sl-ctrl-group-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #757575;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 8px;
+        }
+        .sl-ctrl-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .sl-ctrl-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 14px 8px;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 10px;
+            background: #fff;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .sl-ctrl-btn:hover {
+            border-color: #1a237e;
+            background: rgba(26,35,126,0.03);
+        }
+        .sl-ctrl-btn:active { transform: scale(0.96); }
+        .sl-ctrl-btn.running { opacity: 0.6; pointer-events: none; }
+
+        .sl-ctrl-btn .ctrl-icon {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .sl-ctrl-btn .ctrl-icon .material-icons-round { font-size: 20px; color: #fff; }
+        .sl-ctrl-btn .ctrl-icon.blue { background: linear-gradient(135deg, #1565c0, #1976d2); }
+        .sl-ctrl-btn .ctrl-icon.green { background: linear-gradient(135deg, #2e7d32, #43a047); }
+        .sl-ctrl-btn .ctrl-icon.orange { background: linear-gradient(135deg, #e65100, #f57c00); }
+        .sl-ctrl-btn .ctrl-icon.red { background: linear-gradient(135deg, #c62828, #e53935); }
+        .sl-ctrl-btn .ctrl-icon.purple { background: linear-gradient(135deg, #6a1b9a, #8e24aa); }
+        .sl-ctrl-btn .ctrl-icon.teal { background: linear-gradient(135deg, #00695c, #00897b); }
+
+        .sl-ctrl-btn .ctrl-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #333;
+            line-height: 1.3;
+        }
+        .sl-ctrl-btn .ctrl-status {
+            font-size: 0.62rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 8px;
+        }
+        .sl-ctrl-btn .ctrl-status.active-status { background: #e8f5e9; color: #2e7d32; }
+        .sl-ctrl-btn .ctrl-status.inactive-status { background: #f5f5f5; color: #9e9e9e; }
+
+        /* SL Phone nav bar */
+        .sl-phone-nav {
+            background: #f5f5f5;
+            border-top: 1px solid #e0e0e0;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 60px;
+            flex-shrink: 0;
+        }
+        .sl-phone-nav .material-icons-round {
+            font-size: 24px;
+            color: #333;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .sl-phone-nav .material-icons-round:hover { color: #1a237e; }
+
+        /* Back-to-hub floating button */
+        .sl-back-hub {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #c5cae9;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            display: flex; align-items: center; gap: 6px;
+            transition: all 0.2s;
+        }
+        .sl-back-hub:hover { background: rgba(255,255,255,0.18); color: #fff; }
+        .sl-back-hub .material-icons-round { font-size: 18px; }
+
+        /* SL view management */
+        .sl-view { display: none; flex-direction: column; height: 100%; }
+        .sl-view.active { display: flex; }
+
+        /* SL Bottom sheet modal */
+        .sl-bottom-sheet-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .sl-bottom-sheet-overlay.open { opacity: 1; pointer-events: all; }
+        .sl-bottom-sheet {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: #fff;
+            border-radius: 20px 20px 0 0;
+            z-index: 21;
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+            max-height: 70%;
+            overflow-y: auto;
+        }
+        .sl-bottom-sheet.open { transform: translateY(0); }
+        .sl-bottom-sheet-handle {
+            width: 36px; height: 4px;
+            background: #ccc;
+            border-radius: 2px;
+            margin: 10px auto 0;
+        }
+        .sl-bottom-sheet-header {
+            padding: 14px 18px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .sl-bottom-sheet-header h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #1a237e;
+        }
+        .sl-bottom-sheet-body { padding: 16px 18px; }
+
+        /* ================================================================
+           AUDIT BACKOFFICE SCREEN
+           ================================================================ */
+        .audit-screen {
+            background: #0f111a;
+            display: flex;
+            flex-direction: column;
+            color: #e2e8f0;
+        }
+
+        /* Audit Header */
+        .audit-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 32px;
+            background: #151828;
+            border-bottom: 1px solid #1e243b;
+            flex-shrink: 0;
+        }
+        .audit-header-left {
+            display: flex; align-items: center; gap: 16px;
+        }
+        .audit-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #a5b4fc, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .audit-btn {
+            background: #1e243b;
+            border: 1px solid #2d3748;
+            color: #cbd5e1;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex; align-items: center; gap: 8px;
+            transition: all 0.2s;
+        }
+        .audit-btn:hover { background: #2d3748; color: #fff; }
+        .audit-btn.primary {
+            background: linear-gradient(135deg, #4f46e5, #4338ca);
+            border-color: #4f46e5;
+            color: #fff;
+        }
+        .audit-btn.primary:hover { box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
+
+        /* Audit Layout */
+        .audit-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Main Content (Table) */
+        .audit-main {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+            transition: filter 0.3s;
+        }
+        .audit-main::-webkit-scrollbar { width: 6px; }
+        .audit-main::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 4px; }
+        
+
+        .audit-table-container {
+            background: #151828;
+            border: 1px solid #1e243b;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .audit-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        .audit-table th {
+            background: #1a1e30;
+            padding: 14px 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
+            border-bottom: 1px solid #2d3748;
+        }
+        .audit-table td {
+            padding: 16px 20px;
+            font-size: 0.88rem;
+            border-bottom: 1px solid #1e243b;
+            color: #cbd5e1;
+        }
+        .audit-table tr {
+            transition: background 0.15s;
+            cursor: pointer;
+        }
+        .audit-table tr:hover { background: #1a1e30; }
+        .audit-table tr:last-child td { border-bottom: none; }
+
+        .audit-date { font-family: monospace; font-size: 0.85rem; color: #94a3b8; }
+        .audit-user { display: flex; align-items: center; gap: 8px; font-weight: 500; color: #e2e8f0; }
+        .audit-user .avatar { width: 24px; height: 24px; background: #334155; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #fff; }
+        
+        .audit-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .audit-badge.update { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); }
+        .audit-badge.create { background: rgba(52, 211, 153, 0.1); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.2); }
+        .audit-badge.delete { background: rgba(248, 113, 113, 0.1); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.2); }
+        .audit-badge.system { background: rgba(167, 139, 250, 0.1); color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.2); }
+
+        .audit-action-cell {
+            display: flex; align-items: center; justify-content: flex-end;
+            color: #64748b;
+        }
+        .audit-table tr:hover .audit-action-cell { color: #818cf8; }
+
+        /* Filter Sidebar */
+        .audit-sidebar {
+            position: absolute;
+            top: 0; right: 0; bottom: 0;
+            width: 320px;
+            background: #151828;
+            border-left: 1px solid #1e243b;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.3);
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            z-index: 10;
+            display: flex; flex-direction: column;
+        }
+        .audit-sidebar.open { transform: translateX(0); }
+        .audit-sidebar-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #1e243b;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .audit-sidebar-header h3 { font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: #fff; }
+        .audit-sidebar-body {
+            padding: 24px;
+            flex: 1; overflow-y: auto;
+        }
+        .audit-sidebar-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #1e243b;
+            display: flex; gap: 10px;
+        }
+        .audit-sidebar-footer button { flex: 1; justify-content: center; }
+
+        .audit-filter-group { margin-bottom: 20px; }
+        .audit-filter-label { font-size: 0.75rem; font-weight: 600; color: #94a3b8; margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 0.5px;}
+        .audit-input {
+            width: 100%;
+            background: #0f111a;
+            border: 1px solid #2d3748;
+            color: #e2e8f0;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .audit-input:focus { border-color: #6366f1; }
+
+        /* Modal / Diff View */
+        .audit-modal-overlay {
+            position: absolute; inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 20;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.25s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .audit-modal-overlay.open { opacity: 1; pointer-events: all; }
+        .audit-modal {
+            background: #151828;
+            border: 1px solid #1e243b;
+            border-radius: 16px;
+            width: 800px; max-width: 90%;
+            max-height: 85vh;
+            display: flex; flex-direction: column;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .audit-modal-overlay.open .audit-modal { transform: scale(1); }
+        .audit-modal-header { padding: 20px 24px; border-bottom: 1px solid #1e243b; display: flex; justify-content: space-between; align-items: flex-start; }
+        .audit-modal-title h3 { font-family: 'Outfit'; font-size: 1.2rem; color: #fff; margin-bottom: 4px; }
+        .audit-modal-title p { font-size: 0.8rem; font-family: monospace; color: #94a3b8; }
+        .audit-modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+
+        .audit-diff-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+        }
+        .audit-diff-box {
+            background: #0a0a0f;
+            border: 1px solid #1e243b;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .audit-diff-head {
+            padding: 8px 12px;
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 1px solid #1e243b;
+        }
+        .audit-diff-head.before { background: rgba(248, 113, 113, 0.05); color: #fca5a5; }
+        .audit-diff-head.after { background: rgba(52, 211, 153, 0.05); color: #6ee7b7; }
+        
+        .audit-diff-content {
+            padding: 16px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #cbd5e1;
+            white-space: pre-wrap;
+        }
+        .diff-hl-red { background: rgba(248, 113, 113, 0.15); color: #fca5a5; padding: 2px 4px; border-radius: 3px; }
+        .diff-hl-green { background: rgba(52, 211, 153, 0.15); color: #6ee7b7; padding: 2px 4px; border-radius: 3px; }
+
+        /* Audit Tabs & Dictionary */
+        .audit-tabs { display: flex; gap: 8px; margin-left: 24px; padding-left: 24px; border-left: 1px solid #2d3748; }
+        .audit-tab-btn { background: transparent; border: none; color: #94a3b8; padding: 8px 16px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.2s; }
+        .audit-tab-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .audit-tab-btn.active { color: #fff; background: #2d3748; }
+        
+        .audit-human-readable-box { background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 16px; margin-bottom: 24px; display: flex; gap: 14px; align-items: flex-start; }
+        .audit-human-readable-box .material-icons-round { color: #38bdf8; }
+        .audit-human-readable-text { font-size: 0.95rem; color: #e2e8f0; line-height: 1.5; font-weight: 500;}
+        .audit-human-readable-text em { color: #94a3b8; font-style: normal; font-size: 0.85rem;}
+
+        .audit-dict-input { width: 100%; background: #0f111a; border: 1px solid #2d3748; color: #818cf8; padding: 10px 12px; border-radius: 6px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+        .audit-dict-input:focus { border-color: #6366f1; }
+
+    </style>
+</head>
+<body>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container"></div>
+
+    <!-- ============================================================
+         HUB SCREEN
+         ============================================================ -->
+    <div id="hub-screen" class="screen hub-screen active">
+        <div class="hub-header">
+            <h1>Demo Hub</h1>
+            <p>Plataforma de demostraciones interactivas</p>
+        </div>
+        <div class="hub-grid">
+            <!-- POS Card -->
+            <div class="hub-card fade-in-up delay-1" onclick="navigateTo('pos')">
+                <div class="hub-card-icon pos-icon">
+                    <span class="material-icons-round">point_of_sale</span>
+                </div>
+                <h3>Punto de Venta</h3>
+                <p>Sistema de caja para facturación de tickets de estacionamiento. Interfaz completa con carrito de compras y gestión de tickets.</p>
+                <span class="badge active">Activo</span>
+            </div>
+            <!-- Soporte Local Card -->
+            <div class="hub-card fade-in-up delay-2" onclick="navigateTo('sl')">
+                <div class="hub-card-icon access-icon">
+                    <span class="material-icons-round">phonelink</span>
+                </div>
+                <h3>Soporte Local</h3>
+                <p>App móvil de monitoreo de dispositivos y control remoto de instalaciones de estacionamiento.</p>
+                <span class="badge active">Activo</span>
+            </div>
+            <!-- Audit Card -->
+            <div class="hub-card fade-in-up delay-3" onclick="navigateTo('audit')">
+                <div class="hub-card-icon inv-icon">
+                    <span class="material-icons-round">manage_search</span>
+                </div>
+                <h3>Auditoría Backend</h3>
+                <p>Módulo de backoffice para revisión de logs del sistema, eventos y cambios de estado de variables críticas.</p>
+                <span class="badge active">Activo</span>
+            </div>
+        </div>
+        <div class="hub-footer">
+            <span>© 2026 Deepcompany Servicios Online C.A.</span>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         POS SCREEN
+         ============================================================ -->
+    <div id="pos-screen" class="screen pos-screen">
+        <!-- POS Header -->
+        <div class="pos-header">
+            <button class="pos-hamburger" id="pos-menu-btn" onclick="toggleSidebar()">
+                <span class="material-icons-round">menu</span>
+            </button>
+            <div class="pos-logo"><span class="p-letter">p</span>arkeate</div>
+            <div class="pos-header-right">
+                <span class="material-icons-round">notifications</span>
+                <div class="pos-status-dot" title="Conectado"></div>
+            </div>
+        </div>
+
+        <!-- POS Main View (Caja) -->
+        <div id="pos-main-view" class="pos-config-view active" style="display: flex;">
+            <!-- Toolbar -->
+            <div class="pos-toolbar">
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">person</span>
+                    <span>Cliente</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">attach_money</span>
+                    <span>Cambiar Tarifa</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">inventory</span>
+                    <span>Paquetes</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">receipt_long</span>
+                    <span>Generar Ticket</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">search</span>
+                    <span>Buscar ticket</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">description</span>
+                    <span>Facturas</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">report_problem</span>
+                    <span>Ticket perdido</span>
+                </button>
+                <button class="pos-toolbar-btn">
+                    <span class="material-icons-round">payment</span>
+                    <span>Pagar</span>
+                </button>
+            </div>
+
+            <!-- Main content area -->
+            <div class="pos-main">
+                <div class="pos-left">
+                    <!-- Ticket Info -->
+                    <div class="pos-ticket-info">
+                        <div class="info-row"><span class="info-label">Entrada:</span><span class="info-value"></span></div>
+                        <div class="info-row"><span class="info-label">Razón Social:</span><span class="info-value"></span></div>
+                        <div class="info-row"><span class="info-label">Hora pago:</span><span class="info-value"></span></div>
+                        <div class="info-row"><span class="info-label">Documento:</span><span class="info-value"></span></div>
+                        <div class="info-row"><span class="info-label">Nº Ticket:</span><span class="info-value"></span></div>
+                        <div class="info-row"><span class="info-label">Teléfono:</span><span class="info-value"></span></div>
+                        <div class="info-row"><span class="info-label">Cajero:</span><span class="info-value">cajero</span></div>
+                        <div class="info-row"><span class="info-label">Tasa BCV:</span><span class="info-value">393.2216</span></div>
+                    </div>
+
+                    <!-- Cart Table -->
+                    <table class="pos-cart-table">
+                        <thead>
+                            <tr>
+                                <th>SKU</th>
+                                <th>N° Ticket</th>
+                                <th>Nombre</th>
+                                <th>Cantidad</th>
+                                <th>Precio</th>
+                                <th>IVA</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pos-cart-body">
+                            <!-- Empty cart -->
+                        </tbody>
+                    </table>
+
+                    <!-- Totals -->
+                    <div class="pos-totals-section">
+                        <div class="pos-totals-grid">
+                            <div class="header-row"></div>
+                            <div class="header-row bs">Bs.</div>
+                            <div class="header-row ref" style="color: var(--pos-green-ref);">Ref.</div>
+
+                            <div class="label">IGTF:</div>
+                            <div class="bs">0,00</div>
+                            <div class="ref">0,00</div>
+
+                            <div class="label">I.V.A. :</div>
+                            <div class="bs">0,00</div>
+                            <div class="ref">0,00</div>
+
+                            <div class="label">Subtotal:</div>
+                            <div class="bs">0,00</div>
+                            <div class="ref">0,00</div>
+                        </div>
+                        <div class="pos-total-bar">
+                            <span class="total-label">Total :</span>
+                            <div>
+                                <div class="total-amount">Bs 0,00</div>
+                                <div class="total-ref">Ref. 0,00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Panel -->
+                <div class="pos-right">
+                    <div class="pos-image-box">
+                        <span class="material-icons-round">image</span>
+                    </div>
+                    <div class="pos-image-box">
+                        <span class="material-icons-round">image</span>
+                    </div>
+                    <div class="pos-image-box">
+                        <span class="material-icons-round">image</span>
+                    </div>
+                    <div class="pos-image-box plate">
+                        <span class="material-icons-round">directions_car</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             RESET CONFIG VIEW
+             ============================================================ -->
+        <div id="pos-config-view" class="pos-config-view">
+            <div class="pos-config-header">
+                <button class="pos-config-back" onclick="showPosMainView()">
+                    <span class="material-icons-round">arrow_back</span>
+                </button>
+                <h2>Restablecer Configuraciones</h2>
+            </div>
+            <div class="pos-config-body">
+                <!-- GROUP 1: MEGASOFT -->
+                <div class="config-group">
+                    <div class="config-group-title">
+                        <span class="material-icons-round" style="font-size: 20px;">developer_board</span>
+                        Megasoft
+                    </div>
+                    <div class="config-buttons-grid">
+                        <!-- 1. Configurar Megasoft -->
+                        <button class="config-btn" id="cfg-megasoft-config" onclick="openModal('modal-megasoft-config')">
+                            <span class="btn-badge modal-badge">Modal</span>
+                            <div class="btn-icon megasoft">
+                                <span class="material-icons-round">settings</span>
+                            </div>
+                            <span class="btn-title">Configurar Megasoft</span>
+                            <span class="btn-subtitle">Establecer parámetros de conexión</span>
+                        </button>
+
+                        <!-- 2. Reiniciar Servicio -->
+                        <button class="config-btn" id="cfg-megasoft-restart" onclick="runAutonomousAction('restart-megasoft', this)">
+                            <span class="btn-badge auto-badge">Auto</span>
+                            <div class="btn-icon warning">
+                                <span class="material-icons-round">restart_alt</span>
+                            </div>
+                            <span class="btn-title">Reiniciar Servicio</span>
+                            <span class="btn-subtitle">Para fallas intermitentes</span>
+                            <div class="status-indicator">
+                                <div class="spinner-small"></div>
+                                <span>Reiniciando...</span>
+                            </div>
+                        </button>
+
+                        <!-- 3. Restablecer / Reinstalar -->
+                        <button class="config-btn" id="cfg-megasoft-reinstall" onclick="confirmAction('reinstall-megasoft')">
+                            <span class="btn-badge auto-badge">Auto</span>
+                            <div class="btn-icon danger">
+                                <span class="material-icons-round">build_circle</span>
+                            </div>
+                            <span class="btn-title">Restablecer / Reinstalar</span>
+                            <span class="btn-subtitle">Para fallas graves</span>
+                            <div class="status-indicator">
+                                <div class="spinner-small"></div>
+                                <span>Reinstalando...</span>
+                            </div>
+                        </button>
+
+                        <!-- 4. Probar Conexión -->
+                        <button class="config-btn" id="cfg-megasoft-test" onclick="runAutonomousAction('test-megasoft', this)">
+                            <span class="btn-badge auto-badge">Auto</span>
+                            <div class="btn-icon success">
+                                <span class="material-icons-round">wifi_tethering</span>
+                            </div>
+                            <span class="btn-title">Probar Conexión</span>
+                            <span class="btn-subtitle">Verificar conexión completa</span>
+                            <div class="status-indicator">
+                                <div class="spinner-small"></div>
+                                <span>Probando...</span>
+                            </div>
+                        </button>
+
+                        <!-- 5. Probar Proceso de Pago -->
+                        <button class="config-btn" id="cfg-megasoft-payment" onclick="openModal('modal-payment-test')">
+                            <span class="btn-badge modal-badge">Modal</span>
+                            <div class="btn-icon megasoft">
+                                <span class="material-icons-round">credit_card</span>
+                            </div>
+                            <span class="btn-title">Probar Proceso de Pago</span>
+                            <span class="btn-subtitle">Simular transacción de prueba</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- GROUP 2: IMPRESORA FISCAL -->
+                <div class="config-group">
+                    <div class="config-group-title">
+                        <span class="material-icons-round" style="font-size: 20px;">print</span>
+                        Impresora Fiscal
+                    </div>
+                    <div class="config-buttons-grid">
+                        <!-- 1. Configuración de Impresora -->
+                        <button class="config-btn" id="cfg-printer-config" onclick="openModal('modal-printer-config')">
+                            <span class="btn-badge modal-badge">Modal</span>
+                            <div class="btn-icon printer">
+                                <span class="material-icons-round">settings_suggest</span>
+                            </div>
+                            <span class="btn-title">Configuración de Impresora</span>
+                            <span class="btn-subtitle">Puerto, baudrate y modelo</span>
+                        </button>
+
+                        <!-- 2. Pruebas de Impresora -->
+                        <button class="config-btn" id="cfg-printer-tests" onclick="openModal('modal-printer-tests')">
+                            <span class="btn-badge modal-badge">Modal</span>
+                            <div class="btn-icon printer">
+                                <span class="material-icons-round">print_connect</span>
+                            </div>
+                            <span class="btn-title">Pruebas de Impresora</span>
+                            <span class="btn-subtitle">Imprimir facturas, NC, reportes</span>
+                        </button>
+
+                        <!-- 3. Pruebas de Conexión -->
+                        <button class="config-btn" id="cfg-printer-connection" onclick="runPrinterConnectionTests()">
+                            <span class="btn-badge auto-badge">Auto</span>
+                            <div class="btn-icon success">
+                                <span class="material-icons-round">cable</span>
+                            </div>
+                            <span class="btn-title">Pruebas de Conexión</span>
+                            <span class="btn-subtitle">Pruebas automáticas secuenciales</span>
+                            <div class="status-indicator">
+                                <div class="spinner-small"></div>
+                                <span>Probando...</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Sequential tests result area -->
+                    <div class="test-sequence-container" id="printer-test-sequence">
+                        <div class="test-step pending" data-step="0">
+                            <div class="step-icon"><span class="material-icons-round">hourglass_empty</span></div>
+                            <span class="step-text">Detectando puerto COM...</span>
+                            <span class="step-result"></span>
+                        </div>
+                        <div class="test-step pending" data-step="1">
+                            <div class="step-icon"><span class="material-icons-round">hourglass_empty</span></div>
+                            <span class="step-text">Verificando baudrate...</span>
+                            <span class="step-result"></span>
+                        </div>
+                        <div class="test-step pending" data-step="2">
+                            <div class="step-icon"><span class="material-icons-round">hourglass_empty</span></div>
+                            <span class="step-text">Enviando comando de status...</span>
+                            <span class="step-result"></span>
+                        </div>
+                        <div class="test-step pending" data-step="3">
+                            <div class="step-icon"><span class="material-icons-round">hourglass_empty</span></div>
+                            <span class="step-text">Leyendo información del equipo...</span>
+                            <span class="step-result"></span>
+                        </div>
+                        <div class="test-step pending" data-step="4">
+                            <div class="step-icon"><span class="material-icons-round">hourglass_empty</span></div>
+                            <span class="step-text">Verificando papel disponible...</span>
+                            <span class="step-result"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- POS Footer -->
+        <div class="pos-footer">
+            <span>GStore POS 2.0.27</span>
+            <span>Copyright © 2026 Deepcompany Servicios Online C.A. J-405296062</span>
+            <div class="pos-footer-brand">
+                Powered by
+                <strong>Deepcompany</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         POS SIDEBAR (overlay)
+         ============================================================ -->
+    <div class="pos-sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="pos-sidebar" id="pos-sidebar">
+        <div class="pos-sidebar-header">
+            <h3>GStore POS</h3>
+            <p>Sistema de Punto de Venta</p>
+        </div>
+        <div class="pos-sidebar-menu">
+            <button class="pos-sidebar-item" onclick="closeSidebarAndAction('main')">
+                <span class="material-icons-round">home</span>
+                Inicio
+            </button>
+            <button class="pos-sidebar-item" onclick="closeSidebarAndAction('main')">
+                <span class="material-icons-round">receipt_long</span>
+                Historial de Ventas
+            </button>
+            <button class="pos-sidebar-item" onclick="closeSidebarAndAction('main')">
+                <span class="material-icons-round">bar_chart</span>
+                Reportes
+            </button>
+            <div class="pos-sidebar-divider"></div>
+            <button class="pos-sidebar-item" onclick="closeSidebarAndAction('config')">
+                <span class="material-icons-round">build</span>
+                Restablecer Configuraciones
+            </button>
+            <button class="pos-sidebar-item" onclick="closeSidebarAndAction('main')">
+                <span class="material-icons-round">tune</span>
+                Preferencias
+            </button>
+            <div class="pos-sidebar-divider"></div>
+        </div>
+        <div class="pos-sidebar-footer">
+            <button onclick="closeSidebarAndAction('hub')">
+                <span class="material-icons-round">logout</span>
+                Volver al Hub
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         MODALS
+         ============================================================ -->
+
+    <!-- MODAL: Configurar Megasoft -->
+    <div class="modal-overlay" id="modal-megasoft-config">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Configuración de Megasoft</h3>
+                <button class="modal-close" onclick="closeModal('modal-megasoft-config')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="mega-host">Host / IP del servidor</label>
+                    <input type="text" id="mega-host" class="form-input" placeholder="127.0.0.1" value="127.0.0.1">
+                </div>
+                <div class="form-group">
+                    <label for="mega-port">Puerto</label>
+                    <input type="number" id="mega-port" class="form-input" placeholder="8080" value="8080">
+                </div>
+                <div class="form-group">
+                    <label for="mega-token">Token / Clave de autorización</label>
+                    <input type="password" id="mega-token" class="form-input" placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label for="mega-mode">Modo de operación</label>
+                    <select id="mega-mode" class="form-select">
+                        <option value="production">Producción</option>
+                        <option value="test" selected>Pruebas</option>
+                    </select>
+                </div>
+                <div class="modal-result" id="mega-config-result"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-megasoft-config')">Cancelar</button>
+                <button class="btn-primary" onclick="saveMegasoftConfig()">Guardar Configuración</button>
+                <button class="btn-success" onclick="startMegasoft()">
+                    <span class="material-icons-round" style="font-size:18px;vertical-align:middle;margin-right:4px;">play_arrow</span>
+                    Iniciar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Probar Proceso de Pago -->
+    <div class="modal-overlay" id="modal-payment-test">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Prueba de Proceso de Pago</h3>
+                <button class="modal-close" onclick="closeModal('modal-payment-test')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="pay-amount">Monto de prueba (Ref.)</label>
+                    <input type="number" id="pay-amount" class="form-input" placeholder="1.00" value="1.00" step="0.01" min="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="pay-method">Método de pago</label>
+                    <select id="pay-method" class="form-select">
+                        <option value="debit">Tarjeta de Débito</option>
+                        <option value="credit">Tarjeta de Crédito</option>
+                    </select>
+                </div>
+                <div class="modal-result" id="payment-result"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-payment-test')">Cancelar</button>
+                <button class="btn-primary" onclick="runPaymentTest()">
+                    <span class="material-icons-round" style="font-size:18px;vertical-align:middle;margin-right:4px;">play_arrow</span>
+                    Ejecutar Prueba
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Configuración de Impresora -->
+    <div class="modal-overlay" id="modal-printer-config">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Configuración de Impresora Fiscal</h3>
+                <button class="modal-close" onclick="closeModal('modal-printer-config')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="printer-port">Puerto COM</label>
+                    <select id="printer-port" class="form-select">
+                        <option value="">-- Seleccionar --</option>
+                        <option value="COM1">COM1</option>
+                        <option value="COM2">COM2</option>
+                        <option value="COM3">COM3</option>
+                        <option value="COM4">COM4</option>
+                        <option value="COM5">COM5</option>
+                        <option value="COM6">COM6</option>
+                        <option value="COM7">COM7</option>
+                        <option value="COM8">COM8</option>
+                        <option value="COM9">COM9</option>
+                        <option value="COM10">COM10</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="printer-baud">Baudrate</label>
+                    <select id="printer-baud" class="form-select">
+                        <option value="9600" selected>9600</option>
+                        <option value="19200">19200</option>
+                        <option value="38400">38400</option>
+                        <option value="57600">57600</option>
+                        <option value="115200">115200</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="printer-model">Modelo de impresora</label>
+                    <select id="printer-model" class="form-select">
+                        <option value="">-- Seleccionar --</option>
+                        <option value="bixolon-350">Bixolon SRP-350</option>
+                        <option value="hka80">HKA-80</option>
+                        <option value="pnp">PnP (The Factory)</option>
+                        <option value="tfhka">TFHKA</option>
+                    </select>
+                </div>
+                <div class="modal-result" id="printer-config-result"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="autoDetectPrinter()">
+                    <span class="material-icons-round" style="font-size:18px;vertical-align:middle;margin-right:4px;">autorenew</span>
+                    Detectar
+                </button>
+                <button class="btn-primary" onclick="savePrinterConfig()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Pruebas de Impresora -->
+    <div class="modal-overlay" id="modal-printer-tests">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Pruebas de Impresora Fiscal</h3>
+                <button class="modal-close" onclick="closeModal('modal-printer-tests')">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="print-btn-grid">
+                    <button class="print-btn" onclick="simulatePrint('Última Factura', this)">
+                        <span class="material-icons-round">receipt</span>
+                        <span class="print-label">Última Factura</span>
+                    </button>
+                    <button class="print-btn" onclick="simulatePrint('Última Nota de Crédito', this)">
+                        <span class="material-icons-round">receipt_long</span>
+                        <span class="print-label">Última Nota de Crédito</span>
+                    </button>
+                    <button class="print-btn" onclick="simulatePrint('Reporte X', this)">
+                        <span class="material-icons-round">assessment</span>
+                        <span class="print-label">Reporte X</span>
+                    </button>
+                    <button class="print-btn" onclick="simulatePrint('Reporte Z', this)">
+                        <span class="material-icons-round">summarize</span>
+                        <span class="print-label">Reporte Z</span>
+                    </button>
+                </div>
+                <div class="modal-result" id="print-test-result"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-printer-tests')">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONFIRMATION DIALOG -->
+    <div class="confirm-dialog" id="confirm-dialog">
+        <div class="confirm-card">
+            <div class="confirm-icon">
+                <span class="material-icons-round">warning</span>
+            </div>
+            <h4 id="confirm-title">¿Confirmar acción?</h4>
+            <p id="confirm-message">Esta acción no se puede deshacer.</p>
+            <div class="confirm-actions">
+                <button class="btn-secondary" onclick="closeConfirmDialog()">Cancelar</button>
+                <button class="btn-danger" id="confirm-ok-btn" onclick="executeConfirmedAction()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         SOPORTE LOCAL SCREEN (MOBILE DEMO)
+         ============================================================ -->
+    <div id="sl-screen" class="screen sl-screen">
+        <button class="sl-back-hub" onclick="navigateTo('hub')">
+            <span class="material-icons-round">arrow_back</span>
+            Volver al Hub
+        </button>
+
+        <div class="sl-phone-frame">
+            <!-- Phone notch -->
+            <div class="sl-phone-notch">
+                <span id="sl-time">9:16</span>
+                <div class="sl-notch-right">
+                    <span class="material-icons-round">signal_cellular_alt</span>
+                    <span class="material-icons-round">wifi</span>
+                    <div class="sl-battery"></div>
+                </div>
+            </div>
+
+            <!-- App -->
+            <div class="sl-app" id="sl-app">
+                <!-- Main List View -->
+                <div class="sl-view active" id="sl-view-list">
+                    <div class="sl-header">
+                        <div class="sl-header-hamburger">
+                            <span class="material-icons-round">menu</span>
+                        </div>
+                        <h1>Soporte Local</h1>
+                    </div>
+                    <div class="sl-content" id="sl-installations-list">
+                        <div class="sl-section-title">Panel de Control</div>
+                        <!-- Installations rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Installation Detail View -->
+                <div class="sl-view" id="sl-view-detail">
+                    <div class="sl-header">
+                        <button class="sl-header-back" onclick="slShowList()">
+                            <span class="material-icons-round">arrow_back</span>
+                        </button>
+                        <h1 id="sl-detail-title">Local</h1>
+                    </div>
+                    <div class="sl-content" id="sl-detail-content">
+                        <!-- Detail rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Bottom Sheet (for controls that need input) -->
+                <div class="sl-bottom-sheet-overlay" id="sl-sheet-overlay" onclick="slCloseSheet()"></div>
+                <div class="sl-bottom-sheet" id="sl-bottom-sheet">
+                    <div class="sl-bottom-sheet-handle"></div>
+                    <div class="sl-bottom-sheet-header">
+                        <h3 id="sl-sheet-title">Título</h3>
+                    </div>
+                    <div class="sl-bottom-sheet-body" id="sl-sheet-body">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+
+                <!-- Phone nav -->
+                <div class="sl-phone-nav">
+                    <span class="material-icons-round" onclick="slShowList()">arrow_back_ios</span>
+                    <span class="material-icons-round">circle</span>
+                    <span class="material-icons-round">crop_square</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         AUDIT BACKOFFICE SCREEN
+         ============================================================ -->
+    <div id="audit-screen" class="screen audit-screen">
+        <div class="audit-header">
+            <div class="audit-header-left">
+                <button class="audit-btn" onclick="navigateTo('hub')" style="padding: 6px; border: none; background: transparent;">
+                    <span class="material-icons-round" style="color: #64748b; font-size: 26px;">arrow_back</span>
+                </button>
+                <h1>Auditoría del Sistema</h1>
+                <div class="audit-tabs">
+                    <button class="audit-tab-btn active" id="audit-tab-historial" onclick="auditSwitchView('historial')">Historial Logs</button>
+                    <button class="audit-tab-btn" id="audit-tab-dictionary" onclick="auditSwitchView('dictionary')">Diccionario de Eventos</button>
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button class="audit-btn" onclick="auditExportCSV()">
+                    <span class="material-icons-round" style="font-size: 18px;">download</span>
+                    Exportar CSV
+                </button>
+                <button class="audit-btn primary" onclick="auditToggleSidebar()">
+                    <span class="material-icons-round" style="font-size: 18px;">filter_list</span>
+                    Filtros
+                </button>
+            </div>
+        </div>
+
+        <div class="audit-layout">
+            <!-- HISTORY VIEW -->
+            <div class="audit-main" id="audit-main-area" style="display: block;">
+                <div class="audit-table-container">
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora</th>
+                                <th>Usuario</th>
+                                <th>Módulo</th>
+                                <th>Acción</th>
+                                <th>Estado</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-tbody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- DICTIONARY VIEW -->
+            <div class="audit-main" id="audit-dict-area" style="display: none;">
+                <div class="audit-table-container">
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 250px;">Código Interno</th>
+                                <th style="width: 350px;">Contexto Téc / Nota del Sistema</th>
+                                <th>Traducción Human-Readable (Para Soporte)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-dict-tbody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="audit-sidebar" id="audit-sidebar">
+                <div class="audit-sidebar-header">
+                    <h3>Filtros de Búsqueda</h3>
+                    <button onclick="auditToggleSidebar()" style="color: #64748b;"><span class="material-icons-round">close</span></button>
+                </div>
+                <div class="audit-sidebar-body">
+                    <div class="audit-filter-group">
+                        <label class="audit-filter-label">Rango de Fechas</label>
+                        <select class="audit-input" id="audit-filter-date">
+                            <option value="all">Todo el historial</option>
+                            <option value="today" selected>Hoy</option>
+                            <option value="week">Últimos 7 días</option>
+                            <option value="month">Último mes</option>
+                        </select>
+                    </div>
+                    <div class="audit-filter-group">
+                        <label class="audit-filter-label">Módulo</label>
+                        <select class="audit-input" id="audit-filter-module">
+                            <option value="all">Todos los módulos</option>
+                            <option value="POS">Punto de Venta</option>
+                            <option value="Tariff">Tarifas</option>
+                            <option value="System">Sistema Core</option>
+                            <option value="Security">Seguridad</option>
+                        </select>
+                    </div>
+                    <div class="audit-filter-group">
+                        <label class="audit-filter-label">Usuario</label>
+                        <input type="text" class="audit-input" placeholder="Buscar por nombre o ID...">
+                    </div>
+                </div>
+                <div class="audit-sidebar-footer">
+                    <button class="audit-btn" onclick="auditToggleSidebar()">Cancelar</button>
+                    <button class="audit-btn primary" onclick="auditApplyFilters()">Aplicar Filtros</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Details Modal -->
+        <div class="audit-modal-overlay" id="audit-modal" onclick="auditCloseModal(event)">
+            <div class="audit-modal">
+                <div class="audit-modal-header">
+                    <div class="audit-modal-title">
+                        <h3 id="audit-modal-action">Cambio de Tarifa</h3>
+                        <p>ID Transacción: <span id="audit-modal-tx">TX-1029384</span> • <span id="audit-modal-date">13/04/2026 14:30:22</span></p>
+                    </div>
+                    <button onclick="document.getElementById('audit-modal').classList.remove('open')" style="color: #64748b;"><span class="material-icons-round">close</span></button>
+                </div>
+                <div class="audit-modal-body">
+                    <div class="audit-human-readable-box" id="audit-hr-box" style="display:none;">
+                        <span class="material-icons-round">lightbulb</span>
+                        <div class="audit-human-readable-text" id="audit-hr-text"></div>
+                    </div>
+                    <div style="display:flex; gap: 24px; margin-bottom: 24px; font-size: 0.85rem;">
+                        <div><strong style="color:#94a3b8;">Usuario:</strong> <span style="color:#e2e8f0;" id="audit-modal-user">admin</span></div>
+                        <div><strong style="color:#94a3b8;">IP/Origen:</strong> <span style="color:#e2e8f0;" id="audit-modal-ip">10.0.0.45</span></div>
+                        <div><strong style="color:#94a3b8;">Módulo:</strong> <span style="color:#e2e8f0;" id="audit-modal-module">Tarifas</span></div>
+                        <div><strong style="color:#94a3b8;">Estado:</strong> <span style="color:#e2e8f0;" id="audit-modal-status">Completado</span></div>
+                    </div>
+                    
+                    <h4 style="font-family:'Outfit'; font-size:0.95rem; color:#fff; margin-bottom: 12px;">Diferencia de Estado (JSON)</h4>
+                    <div class="audit-diff-grid">
+                        <div class="audit-diff-box">
+                            <div class="audit-diff-head before">Estado Anterior</div>
+                            <div class="audit-diff-content" id="audit-diff-before"></div>
+                        </div>
+                        <div class="audit-diff-box">
+                            <div class="audit-diff-head after">Nuevo Estado</div>
+                            <div class="audit-diff-content" id="audit-diff-after"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         JAVASCRIPT
+         ============================================================ -->
+    <script>
+        // ============================
+        // STATE
+        // ============================
+        let currentScreen = 'hub';
+        let currentPosView = 'main'; // 'main' or 'config'
+        let pendingConfirmAction = null;
+
+        // ============================
+        // NAVIGATION
+        // ============================
+        function navigateTo(screen) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById(screen + '-screen');
+            if (target) {
+                target.classList.add('active');
+                currentScreen = screen;
+            }
+        }
+
+        // ============================
+        // SIDEBAR
+        // ============================
+        function toggleSidebar() {
+            const sidebar = document.getElementById('pos-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+        }
+
+        function closeSidebarAndAction(action) {
+            toggleSidebar();
+            setTimeout(() => {
+                if (action === 'config') {
+                    showConfigView();
+                } else if (action === 'hub') {
+                    showPosMainView();
+                    navigateTo('hub');
+                } else {
+                    showPosMainView();
+                }
+            }, 200);
+        }
+
+        // ============================
+        // POS VIEWS
+        // ============================
+        function showConfigView() {
+            document.getElementById('pos-main-view').classList.remove('active');
+            document.getElementById('pos-main-view').style.display = 'none';
+            const cv = document.getElementById('pos-config-view');
+            cv.classList.add('active');
+            cv.style.display = 'flex';
+            currentPosView = 'config';
+        }
+
+        function showPosMainView() {
+            document.getElementById('pos-config-view').classList.remove('active');
+            document.getElementById('pos-config-view').style.display = 'none';
+            const mv = document.getElementById('pos-main-view');
+            mv.classList.add('active');
+            mv.style.display = 'flex';
+            currentPosView = 'main';
+            // Reset sequential tests
+            resetPrinterTests();
+        }
+
+        // ============================
+        // MODALS
+        // ============================
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('open');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('open');
+            // Clear results
+            const results = document.getElementById(modalId)?.querySelectorAll('.modal-result');
+            results?.forEach(r => { r.classList.remove('visible', 'success', 'error', 'info'); r.textContent = ''; });
+        }
+
+        // Close modals on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.classList.remove('open');
+            });
+        });
+
+        // ============================
+        // TOASTS
+        // ============================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icons = { success: 'check_circle', error: 'error', info: 'info', warning: 'warning' };
+            toast.innerHTML = `<span class="material-icons-round" style="font-size:20px;">${icons[type]}</span>${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3800);
+        }
+
+        // ============================
+        // CONFIRMATION DIALOG
+        // ============================
+        function confirmAction(action) {
+            pendingConfirmAction = action;
+            const dialog = document.getElementById('confirm-dialog');
+            const title = document.getElementById('confirm-title');
+            const message = document.getElementById('confirm-message');
+
+            if (action === 'reinstall-megasoft') {
+                title.textContent = '¿Restablecer Megasoft?';
+                message.textContent = 'Se restablecerá/reinstalará completamente Megasoft. Este proceso puede tomar varios minutos. ¿Desea continuar?';
+            }
+
+            dialog.classList.add('open');
+        }
+
+        function closeConfirmDialog() {
+            document.getElementById('confirm-dialog').classList.remove('open');
+            pendingConfirmAction = null;
+        }
+
+        function executeConfirmedAction() {
+            const action = pendingConfirmAction;
+            closeConfirmDialog();
+
+            if (action === 'reinstall-megasoft') {
+                const btn = document.getElementById('cfg-megasoft-reinstall');
+                runAutonomousAction('reinstall-megasoft', btn);
+            }
+        }
+
+        // ============================
+        // AUTONOMOUS ACTIONS (Simulated)
+        // ============================
+        async function runAutonomousAction(actionId, btnElement) {
+            btnElement.classList.add('running');
+
+            // Simulate async operation
+            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+            const actions = {
+                'restart-megasoft': {
+                    duration: 2500,
+                    successMsg: 'Servicio de Megasoft reiniciado correctamente',
+                    successRate: 0.85
+                },
+                'reinstall-megasoft': {
+                    duration: 5000,
+                    successMsg: 'Megasoft restablecido/reinstalado correctamente',
+                    successRate: 0.9
+                },
+                'test-megasoft': {
+                    duration: 3000,
+                    successMsg: 'Conexión con Megasoft verificada ✓ Latencia: 12ms',
+                    successRate: 0.8
+                }
+            };
+
+            const config = actions[actionId];
+            if (!config) return;
+
+            await delay(config.duration);
+
+            btnElement.classList.remove('running');
+
+            const success = Math.random() < config.successRate;
+            if (success) {
+                showToast(config.successMsg, 'success');
+            } else {
+                showToast('Error: No se pudo completar la acción. Verifique la conexión.', 'error');
+            }
+        }
+
+        // ============================
+        // MEGASOFT CONFIG ACTIONS
+        // ============================
+        function saveMegasoftConfig() {
+            const host = document.getElementById('mega-host').value;
+            const port = document.getElementById('mega-port').value;
+            const mode = document.getElementById('mega-mode').value;
+
+            if (!host || !port) {
+                showResult('mega-config-result', 'error', 'Complete todos los campos requeridos.');
+                return;
+            }
+
+            // Save to localStorage
+            const config = { host, port, token: '***', mode };
+            localStorage.setItem('megasoft-config', JSON.stringify(config));
+
+            showResult('mega-config-result', 'success', `Configuración guardada: ${host}:${port} (modo ${mode})`);
+            showToast('Configuración de Megasoft guardada', 'success');
+        }
+
+        function startMegasoft() {
+            const result = document.getElementById('mega-config-result');
+            showResult('mega-config-result', 'info', '⏳ Iniciando servicio de Megasoft...');
+
+            setTimeout(() => {
+                const success = Math.random() > 0.2;
+                if (success) {
+                    showResult('mega-config-result', 'success', '✅ Megasoft iniciado correctamente. Servicio activo en el puerto configurado.');
+                    showToast('Megasoft iniciado correctamente', 'success');
+                } else {
+                    showResult('mega-config-result', 'error', '❌ Error al iniciar Megasoft. Verifique la configuración y el puerto.');
+                    showToast('Error al iniciar Megasoft', 'error');
+                }
+            }, 2000);
+        }
+
+        // ============================
+        // PAYMENT TEST
+        // ============================
+        function runPaymentTest() {
+            const amount = document.getElementById('pay-amount').value;
+            const method = document.getElementById('pay-method').value;
+
+            if (!amount || amount <= 0) {
+                showResult('payment-result', 'error', 'Ingrese un monto válido.');
+                return;
+            }
+
+            showResult('payment-result', 'info', '⏳ Procesando transacción de prueba...');
+
+            setTimeout(() => {
+                const success = Math.random() > 0.15;
+                const methodLabel = method === 'debit' ? 'Débito' : 'Crédito';
+                if (success) {
+                    const refNum = 'REF-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+                    showResult('payment-result', 'success',
+                        `✅ Transacción exitosa\n` +
+                        `Monto: Ref. ${parseFloat(amount).toFixed(2)}\n` +
+                        `Método: Tarjeta de ${methodLabel}\n` +
+                        `Referencia: ${refNum}\n` +
+                        `Fecha: ${new Date().toLocaleString('es-VE')}`
+                    );
+                    showToast('Prueba de pago exitosa', 'success');
+                } else {
+                    showResult('payment-result', 'error',
+                        `❌ Transacción rechazada\n` +
+                        `Código de error: E-402\n` +
+                        `Motivo: Timeout en la comunicación con el terminal`
+                    );
+                    showToast('Prueba de pago fallida', 'error');
+                }
+            }, 3000);
+        }
+
+        // ============================
+        // PRINTER CONFIG ACTIONS
+        // ============================
+        function savePrinterConfig() {
+            const port = document.getElementById('printer-port').value;
+            const baud = document.getElementById('printer-baud').value;
+            const model = document.getElementById('printer-model').value;
+
+            if (!port || !model) {
+                showResult('printer-config-result', 'error', 'Seleccione puerto COM y modelo de impresora.');
+                return;
+            }
+
+            const config = { port, baud, model };
+            localStorage.setItem('printer-config', JSON.stringify(config));
+
+            showResult('printer-config-result', 'success', `Configuración guardada: ${model} en ${port} @ ${baud} baud`);
+            showToast('Configuración de impresora guardada', 'success');
+        }
+
+        function autoDetectPrinter() {
+            showResult('printer-config-result', 'info', '⏳ Buscando impresora fiscal en puertos COM...');
+
+            setTimeout(() => {
+                const detected = Math.random() > 0.3;
+                if (detected) {
+                    document.getElementById('printer-port').value = 'COM3';
+                    document.getElementById('printer-baud').value = '9600';
+                    document.getElementById('printer-model').value = 'hka80';
+                    showResult('printer-config-result', 'success', '✅ Impresora detectada: HKA-80 en COM3 @ 9600 baud');
+                    showToast('Impresora detectada automáticamente', 'success');
+                } else {
+                    showResult('printer-config-result', 'error', '❌ No se detectó ninguna impresora fiscal. Verifique la conexión física.');
+                    showToast('No se detectó impresora', 'warning');
+                }
+            }, 2500);
+        }
+
+        // ============================
+        // PRINTER PRINT TESTS
+        // ============================
+        function simulatePrint(docType, btnElement) {
+            const origText = btnElement.querySelector('.print-label').textContent;
+            btnElement.querySelector('.print-label').textContent = 'Imprimiendo...';
+            btnElement.style.pointerEvents = 'none';
+            btnElement.style.opacity = '0.6';
+
+            setTimeout(() => {
+                const success = Math.random() > 0.1;
+                btnElement.querySelector('.print-label').textContent = origText;
+                btnElement.style.pointerEvents = '';
+                btnElement.style.opacity = '';
+
+                if (success) {
+                    showResult('print-test-result', 'success', `✅ "${docType}" enviado a impresora correctamente.`);
+                    showToast(`${docType} impresa`, 'success');
+                } else {
+                    showResult('print-test-result', 'error', `❌ Error al imprimir "${docType}". Impresora no responde.`);
+                    showToast(`Error al imprimir ${docType}`, 'error');
+                }
+            }, 1800);
+        }
+
+        // ============================
+        // PRINTER CONNECTION TESTS (Sequential)
+        // ============================
+        async function runPrinterConnectionTests() {
+            const container = document.getElementById('printer-test-sequence');
+            const btn = document.getElementById('cfg-printer-connection');
+            container.classList.add('visible');
+            btn.classList.add('running');
+
+            // Reset all steps
+            resetPrinterTests();
+            container.classList.add('visible');
+
+            const steps = container.querySelectorAll('.test-step');
+            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+            const testResults = [
+                { success: true, result: 'COM3 detectado' },
+                { success: true, result: '9600 baud OK' },
+                { success: Math.random() > 0.2, result: '' },
+                { success: Math.random() > 0.15, result: '' },
+                { success: Math.random() > 0.1, result: '' }
+            ];
+            // Set dynamic results
+            testResults[2].result = testResults[2].success ? 'Status: OK' : 'Sin respuesta';
+            testResults[3].result = testResults[3].success ? 'S/N: HKA-2024-0412' : 'Error de lectura';
+            testResults[4].result = testResults[4].success ? 'Papel disponible' : 'Sin papel';
+
+            for (let i = 0; i < steps.length; i++) {
+                // Set current to running
+                steps[i].className = 'test-step running';
+                steps[i].querySelector('.step-icon').innerHTML = '<div class="spinner-small"></div>';
+
+                await delay(1200 + Math.random() * 800);
+
+                // Check if previous step failed - cascading failure
+                if (i > 0 && steps[i - 1].classList.contains('error')) {
+                    steps[i].className = 'test-step error';
+                    steps[i].querySelector('.step-icon').innerHTML = '<span class="material-icons-round">block</span>';
+                    steps[i].querySelector('.step-result').textContent = 'Omitido';
+                    continue;
+                }
+
+                const result = testResults[i];
+                if (result.success) {
+                    steps[i].className = 'test-step success';
+                    steps[i].querySelector('.step-icon').innerHTML = '<span class="material-icons-round">check_circle</span>';
+                    steps[i].querySelector('.step-result').textContent = result.result;
+                } else {
+                    steps[i].className = 'test-step error';
+                    steps[i].querySelector('.step-icon').innerHTML = '<span class="material-icons-round">cancel</span>';
+                    steps[i].querySelector('.step-result').textContent = result.result;
+                }
+            }
+
+            btn.classList.remove('running');
+
+            // Summary toast
+            const passCount = container.querySelectorAll('.test-step.success').length;
+            const total = steps.length;
+            if (passCount === total) {
+                showToast(`Todas las pruebas pasaron (${passCount}/${total})`, 'success');
+            } else {
+                showToast(`Pruebas: ${passCount}/${total} pasaron`, passCount > total / 2 ? 'warning' : 'error');
+            }
+        }
+
+        function resetPrinterTests() {
+            const container = document.getElementById('printer-test-sequence');
+            container.classList.remove('visible');
+            container.querySelectorAll('.test-step').forEach(step => {
+                step.className = 'test-step pending';
+                step.querySelector('.step-icon').innerHTML = '<span class="material-icons-round">hourglass_empty</span>';
+                step.querySelector('.step-result').textContent = '';
+            });
+        }
+
+        // ============================
+        // UTILITIES
+        // ============================
+        function showResult(elementId, type, message) {
+            const el = document.getElementById(elementId);
+            el.className = 'modal-result visible ' + type;
+            el.textContent = message;
+            el.style.whiteSpace = 'pre-line';
+        }
+
+        // Load saved configs on startup
+        function loadSavedConfigs() {
+            const megaConfig = localStorage.getItem('megasoft-config');
+            if (megaConfig) {
+                try {
+                    const c = JSON.parse(megaConfig);
+                    document.getElementById('mega-host').value = c.host || '';
+                    document.getElementById('mega-port').value = c.port || '';
+                    document.getElementById('mega-mode').value = c.mode || 'test';
+                } catch (e) {}
+            }
+
+            const printerConfig = localStorage.getItem('printer-config');
+            if (printerConfig) {
+                try {
+                    const c = JSON.parse(printerConfig);
+                    document.getElementById('printer-port').value = c.port || '';
+                    document.getElementById('printer-baud').value = c.baud || '9600';
+                    document.getElementById('printer-model').value = c.model || '';
+                } catch (e) {}
+            }
+        }
+
+        // Init
+        loadSavedConfigs();
+
+        // ============================
+        // SOPORTE LOCAL - DATA & LOGIC
+        // ============================
+        const SL_INSTALLATIONS = [
+            {
+                id: 'chacaito',
+                name: 'Expreso Chacaito',
+                server: {
+                    name: 'Servidor Central', location: 'Expreso Chacaito',
+                    status: 'online',
+                    ip: '10.2.204.1',
+                    connection: '08/04/2026 09:08:13 PM',
+                    lastDisconnect: '08/04/2026 09:08:09 PM',
+                    cpu: 8.0, ramUsed: 4.75, ramTotal: 7.69,
+                    storage: [{ mount: '/dev/mapper/parkeate--vg-root (/)', pct: 22 }, { mount: '/dev/sda1 (/boot)', pct: 20 }],
+                    network: '0.02 MB/s | 0.00 MB/s',
+                    lastRead: '13/04/2026 09:15:47 AM'
+                },
+                pos: [
+                    { name: 'Caja Kiosk 01', ip: '10.2.204.103', status: 'online', connection: '12/04/2026 06:32:07 AM', lastDisconnect: '12/04/2026 03:53:51 AM' },
+                    { name: 'Caja Kiosk 02', ip: '10.2.204.104', status: 'online', connection: '11/04/2026 10:15:22 AM', lastDisconnect: '11/04/2026 10:14:58 AM' }
+                ],
+                entry: [
+                    { name: 'Entrada Derecha', ip: '10.2.204.21', status: 'online', connection: '11/04/2026 12:01:40 PM', lastDisconnect: '11/04/2026 12:00:22 PM', rssi: -22, usb: 'En Funcionamiento (144)', sensor: 'Sin detección', ethernet: 'Desconectado', lastStart: 'RST: RTCWDT_RTC_RESET - Reinicio de Core y RTC por RTC WatchDog (16)' },
+                    { name: 'Entrada Izquierda', ip: '10.2.204.23', status: 'online', connection: '10/04/2026 05:40:12 PM', lastDisconnect: '10/04/2026 05:26:15 PM', rssi: -17, usb: 'En Funcionamiento (144)', sensor: 'Sin detección', ethernet: 'Desconectado', lastStart: 'RST: POWERON_RESET - Inicio por encendido (1)' }
+                ],
+                exit: [
+                    { name: 'Salida Francisco', ip: '10.2.204.31', status: 'online', connection: '13/04/2026 08:10:05 AM', lastDisconnect: '13/04/2026 08:09:44 AM', rssi: -30, usb: 'En Funcionamiento (144)', sensor: 'Sin detección', ethernet: 'Desconectado', lastStart: 'RST: SW_CPU_RESET - Reinicio por software (12)' }
+                ]
+            },
+            {
+                id: 'galipan',
+                name: 'Galipán',
+                server: {
+                    name: 'Servidor Central', location: 'Galipán',
+                    status: 'online', ip: '10.3.1.1',
+                    connection: '13/04/2026 07:22:10 AM', lastDisconnect: '12/04/2026 11:58:00 PM',
+                    cpu: 12.5, ramUsed: 3.20, ramTotal: 4.00,
+                    storage: [{ mount: '/dev/sda1 (/)', pct: 45 }],
+                    network: '0.05 MB/s | 0.01 MB/s', lastRead: '13/04/2026 09:14:22 AM'
+                },
+                pos: [
+                    { name: 'Caja Principal', ip: '10.3.1.100', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 10:30:00 PM' }
+                ],
+                entry: [
+                    { name: 'Entrada Principal', ip: '10.3.1.20', status: 'online', connection: '13/04/2026 07:00:00 AM', lastDisconnect: '12/04/2026 11:50:00 PM', rssi: -25, usb: 'En Funcionamiento (88)', sensor: 'Sin detección', ethernet: 'Conectado', lastStart: 'RST: POWERON_RESET' }
+                ],
+                exit: [
+                    { name: 'Salida Principal', ip: '10.3.1.30', status: 'offline', connection: '12/04/2026 09:00:00 PM', lastDisconnect: '12/04/2026 09:00:15 PM', rssi: -55, usb: 'Desconectado', sensor: 'N/A', ethernet: 'Desconectado', lastStart: 'N/A' }
+                ]
+            },
+            {
+                id: 'humboldt',
+                name: 'Humboldt',
+                server: { name: 'Servidor Central', location: 'Humboldt', status: 'online', ip: '10.4.1.1', connection: '13/04/2026 08:00:00 AM', lastDisconnect: '13/04/2026 07:59:50 AM', cpu: 5.2, ramUsed: 2.10, ramTotal: 4.00, storage: [{ mount: '/', pct: 31 }], network: '0.01 MB/s | 0.00 MB/s', lastRead: '13/04/2026 09:16:00 AM' },
+                pos: [{ name: 'Caja 01', ip: '10.4.1.100', status: 'online', connection: '13/04/2026 06:30:00 AM', lastDisconnect: '12/04/2026 11:00:00 PM' }],
+                entry: [{ name: 'Entrada Única', ip: '10.4.1.20', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 11:00:00 PM', rssi: -19, usb: 'En Funcionamiento (100)', sensor: 'Sin detección', ethernet: 'Conectado', lastStart: 'RST: POWERON_RESET' }],
+                exit: [{ name: 'Salida Única', ip: '10.4.1.30', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 11:00:00 PM', rssi: -21, usb: 'En Funcionamiento (100)', sensor: 'Sin detección', ethernet: 'Conectado', lastStart: 'RST: POWERON_RESET' }]
+            },
+            {
+                id: 'maxihogar',
+                name: 'Maxihogar',
+                server: { name: 'Servidor Central', location: 'Maxihogar', status: 'online', ip: '10.5.1.1', connection: '13/04/2026 05:00:00 AM', lastDisconnect: '12/04/2026 11:59:00 PM', cpu: 15.0, ramUsed: 5.50, ramTotal: 8.00, storage: [{ mount: '/', pct: 55 }], network: '0.10 MB/s | 0.03 MB/s', lastRead: '13/04/2026 09:15:00 AM' },
+                pos: [{ name: 'Caja Kiosk 01', ip: '10.5.1.101', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 09:00:00 PM' }, { name: 'Caja Kiosk 02', ip: '10.5.1.102', status: 'offline', connection: '11/04/2026 08:00:00 AM', lastDisconnect: '11/04/2026 04:00:00 PM' }],
+                entry: [{ name: 'Entrada Norte', ip: '10.5.1.20', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 11:00:00 PM', rssi: -28, usb: 'En Funcionamiento (112)', sensor: 'Sin detección', ethernet: 'Desconectado', lastStart: 'RST: SW_CPU_RESET' }],
+                exit: [{ name: 'Salida Sur', ip: '10.5.1.30', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 11:00:00 PM', rssi: -32, usb: 'En Funcionamiento (112)', sensor: 'Sin detección', ethernet: 'Desconectado', lastStart: 'RST: POWERON_RESET' }]
+            },
+            {
+                id: 'hatillo',
+                name: 'Paseo El Hatillo',
+                server: { name: 'Servidor Central', location: 'Paseo El Hatillo', status: 'online', ip: '10.6.1.1', connection: '13/04/2026 07:00:00 AM', lastDisconnect: '12/04/2026 11:30:00 PM', cpu: 6.8, ramUsed: 3.00, ramTotal: 8.00, storage: [{ mount: '/', pct: 18 }], network: '0.03 MB/s | 0.01 MB/s', lastRead: '13/04/2026 09:16:10 AM' },
+                pos: [{ name: 'Caja Kiosk 01', ip: '10.6.1.100', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 10:00:00 PM' }],
+                entry: [{ name: 'Entrada A', ip: '10.6.1.20', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 10:00:00 PM', rssi: -15, usb: 'En Funcionamiento (88)', sensor: 'Sin detección', ethernet: 'Conectado', lastStart: 'RST: POWERON_RESET' }],
+                exit: [{ name: 'Salida A', ip: '10.6.1.30', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 10:00:00 PM', rssi: -18, usb: 'En Funcionamiento (88)', sensor: 'Sin detección', ethernet: 'Conectado', lastStart: 'RST: POWERON_RESET' }]
+            },
+            {
+                id: 'tantalo-baruta',
+                name: 'Tantalo Baruta',
+                server: { name: 'Servidor Central', location: 'Tantalo Baruta', status: 'online', ip: '10.7.1.1', connection: '13/04/2026 06:30:00 AM', lastDisconnect: '12/04/2026 11:00:00 PM', cpu: 9.3, ramUsed: 4.00, ramTotal: 8.00, storage: [{ mount: '/', pct: 38 }], network: '0.04 MB/s | 0.01 MB/s', lastRead: '13/04/2026 09:15:55 AM' },
+                pos: [{ name: 'Caja 01', ip: '10.7.1.100', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 09:00:00 PM' }],
+                entry: [{ name: 'Entrada Principal', ip: '10.7.1.20', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 10:00:00 PM', rssi: -20, usb: 'En Funcionamiento (100)', sensor: 'Sin detección', ethernet: 'Desconectado', lastStart: 'RST: POWERON_RESET' }],
+                exit: [{ name: 'Salida Principal', ip: '10.7.1.30', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 10:00:00 PM', rssi: -24, usb: 'En Funcionamiento (100)', sensor: 'Sin detección', ethernet: 'Desconectado', lastStart: 'RST: POWERON_RESET' }]
+            },
+            {
+                id: 'tantalo-valencia',
+                name: 'Tantalo Valencia',
+                server: { name: 'Servidor Central', location: 'Tantalo Valencia', status: 'offline', ip: '10.8.1.1', connection: '12/04/2026 04:00:00 PM', lastDisconnect: '12/04/2026 04:00:30 PM', cpu: 0, ramUsed: 0, ramTotal: 4.00, storage: [{ mount: '/', pct: 0 }], network: 'N/A', lastRead: '12/04/2026 04:00:00 PM' },
+                pos: [{ name: 'Caja 01', ip: '10.8.1.100', status: 'offline', connection: '12/04/2026 03:00:00 PM', lastDisconnect: '12/04/2026 04:00:00 PM' }],
+                entry: [{ name: 'Entrada Principal', ip: '10.8.1.20', status: 'offline', connection: '12/04/2026 03:00:00 PM', lastDisconnect: '12/04/2026 04:00:00 PM', rssi: 0, usb: 'Desconectado', sensor: 'N/A', ethernet: 'Desconectado', lastStart: 'N/A' }],
+                exit: [{ name: 'Salida Principal', ip: '10.8.1.30', status: 'offline', connection: '12/04/2026 03:00:00 PM', lastDisconnect: '12/04/2026 04:00:00 PM', rssi: 0, usb: 'Desconectado', sensor: 'N/A', ethernet: 'Desconectado', lastStart: 'N/A' }]
+            },
+            {
+                id: 'tolon',
+                name: 'Tolón',
+                server: { name: 'Servidor Central', location: 'Tolón', status: 'online', ip: '10.9.1.1', connection: '13/04/2026 05:30:00 AM', lastDisconnect: '12/04/2026 11:55:00 PM', cpu: 11.2, ramUsed: 5.00, ramTotal: 8.00, storage: [{ mount: '/', pct: 42 }], network: '0.08 MB/s | 0.02 MB/s', lastRead: '13/04/2026 09:16:05 AM' },
+                pos: [{ name: 'Caja Kiosk 01', ip: '10.9.1.101', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 10:00:00 PM' }, { name: 'Caja Kiosk 02', ip: '10.9.1.102', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 10:00:00 PM' }],
+                entry: [{ name: 'Entrada Norte', ip: '10.9.1.20', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 10:00:00 PM', rssi: -14, usb: 'En Funcionamiento (144)', sensor: 'Sin detección', ethernet: 'Conectado', lastStart: 'RST: POWERON_RESET' }, { name: 'Entrada Sur', ip: '10.9.1.22', status: 'online', connection: '13/04/2026 06:15:00 AM', lastDisconnect: '12/04/2026 10:00:00 PM', rssi: -19, usb: 'En Funcionamiento (144)', sensor: 'Sin detección', ethernet: 'Desconectado', lastStart: 'RST: POWERON_RESET' }],
+                exit: [{ name: 'Salida Norte', ip: '10.9.1.30', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 10:00:00 PM', rssi: -16, usb: 'En Funcionamiento (144)', sensor: 'Sin detección', ethernet: 'Conectado', lastStart: 'RST: POWERON_RESET' }]
+            },
+            {
+                id: 'vitraf',
+                name: 'Vitraf Parking',
+                server: { name: 'Servidor Central', location: 'Vitraf Parking', status: 'online', ip: '10.10.1.1', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 11:30:00 PM', cpu: 7.5, ramUsed: 2.80, ramTotal: 4.00, storage: [{ mount: '/', pct: 28 }], network: '0.02 MB/s | 0.00 MB/s', lastRead: '13/04/2026 09:15:30 AM' },
+                pos: [{ name: 'Caja 01', ip: '10.10.1.100', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 09:00:00 PM' }],
+                entry: [{ name: 'Entrada Principal', ip: '10.10.1.20', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 10:00:00 PM', rssi: -22, usb: 'En Funcionamiento (88)', sensor: 'Sin detección', ethernet: 'Desconectado', lastStart: 'RST: POWERON_RESET' }],
+                exit: [{ name: 'Salida Principal', ip: '10.10.1.30', status: 'online', connection: '13/04/2026 06:00:00 AM', lastDisconnect: '12/04/2026 10:00:00 PM', rssi: -25, usb: 'En Funcionamiento (88)', sensor: 'Sin detección', ethernet: 'Desconectado', lastStart: 'RST: POWERON_RESET' }]
+            }
+        ];
+
+        // Control states per installation
+        const slControlStates = {};
+        SL_INSTALLATIONS.forEach(inst => {
+            slControlStates[inst.id] = {
+                testTariff: {},
+                freePassage: {}
+            };
+            inst.pos.forEach((p, i) => { slControlStates[inst.id].testTariff[i] = false; });
+            inst.entry.forEach((e, i) => { slControlStates[inst.id].freePassage['entry-'+i] = false; });
+            inst.exit.forEach((e, i) => { slControlStates[inst.id].freePassage['exit-'+i] = false; });
+        });
+
+        // Render installations list
+        function slRenderList() {
+            const container = document.getElementById('sl-installations-list');
+            let html = '<div class="sl-section-title">Panel de Control</div>';
+            SL_INSTALLATIONS.forEach(inst => {
+                html += `
+                <div class="sl-install-card" id="sl-card-${inst.id}">
+                    <div class="sl-install-header" onclick="slToggleCard('${inst.id}')">
+                        <h3>Local: ${inst.name}</h3>
+                        <span class="material-icons-round">expand_more</span>
+                    </div>
+                    <div class="sl-install-body">
+                        <button class="sl-ctrl-btn" style="width:100%;flex-direction:row;gap:12px;padding:10px 14px;border-color:#1a237e;" onclick="slShowDetail('${inst.id}')">
+                            <div class="ctrl-icon blue"><span class="material-icons-round">visibility</span></div>
+                            <span class="ctrl-label" style="font-size:0.82rem;">Ver detalles y controles</span>
+                            <span class="material-icons-round" style="margin-left:auto;font-size:20px;color:#1a237e;">chevron_right</span>
+                        </button>
+                        <div style="margin-top:10px;">
+                            <div class="sl-device-detail"><span class="material-icons-round">dns</span> <strong>Servidor:</strong> <span class="sl-status-badge ${inst.server.status === 'online' ? 'online' : 'offline'}">${inst.server.status === 'online' ? 'Conectado' : 'Desconectado'}</span></div>
+                            <div class="sl-device-detail" style="margin-top:4px;"><span class="material-icons-round">point_of_sale</span> <strong>POS:</strong> ${inst.pos.length} dispositivo(s)</div>
+                            <div class="sl-device-detail" style="margin-top:4px;"><span class="material-icons-round">sensor_door</span> <strong>Barreras:</strong> ${inst.entry.length + inst.exit.length} dispositivo(s)</div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function slToggleCard(id) {
+            const card = document.getElementById('sl-card-' + id);
+            card.classList.toggle('expanded');
+        }
+
+        // Show detail view for installation
+        function slShowDetail(instId) {
+            const inst = SL_INSTALLATIONS.find(i => i.id === instId);
+            if (!inst) return;
+
+            document.getElementById('sl-detail-title').textContent = inst.name;
+            document.getElementById('sl-view-list').classList.remove('active');
+            document.getElementById('sl-view-detail').classList.add('active');
+
+            const content = document.getElementById('sl-detail-content');
+            let html = '';
+
+            // Server
+            const s = inst.server;
+            const cpuClass = s.cpu < 50 ? 'low' : s.cpu < 80 ? 'med' : 'high';
+            const ramPct = ((s.ramUsed / s.ramTotal) * 100).toFixed(0);
+            const ramClass = ramPct < 60 ? 'low' : ramPct < 85 ? 'med' : 'high';
+            html += `
+            <div class="sl-device-card ${s.status === 'offline' ? 'offline' : ''}">
+                <div class="sl-device-header">
+                    <div><div class="sl-device-name">${s.name}</div><div class="sl-device-ip">${s.location}</div></div>
+                    <span class="sl-status-badge ${s.status}">${s.status === 'online' ? 'Conectado' : 'Desconectado'}</span>
+                </div>
+                <div class="sl-device-detail"><span class="material-icons-round">link</span> <strong>Conexión:</strong> ${s.connection}</div>
+                <div class="sl-device-detail"><span class="material-icons-round">link_off</span> <strong>Última desconexión:</strong> ${s.lastDisconnect}</div>
+            </div>
+
+            <div class="sl-subsection">
+                <div class="sl-subsection-title"><span class="material-icons-round">monitor_heart</span> Monitoreo del Sistema</div>
+                <div class="sl-monitor-row">
+                    <span class="material-icons-round sl-mon-icon">memory</span>
+                    <span class="sl-mon-label">CPU Load</span>
+                    <span class="sl-mon-value">${s.cpu}%</span>
+                </div>
+                <div class="sl-progress-bar"><div class="sl-progress-fill ${cpuClass}" style="width:${s.cpu}%"></div></div>
+
+                <div class="sl-monitor-row" style="margin-top:10px;">
+                    <span class="material-icons-round sl-mon-icon">sd_storage</span>
+                    <span class="sl-mon-label">RAM Usage</span>
+                    <span class="sl-mon-value">${s.ramUsed} / ${s.ramTotal} GB</span>
+                </div>
+                <div class="sl-progress-bar"><div class="sl-progress-fill ${ramClass}" style="width:${ramPct}%"></div></div>`;
+
+            s.storage.forEach(st => {
+                const stClass = st.pct < 60 ? 'low' : st.pct < 85 ? 'med' : 'high';
+                html += `
+                <div class="sl-monitor-row" style="margin-top:10px;">
+                    <span class="material-icons-round sl-mon-icon">folder</span>
+                    <span class="sl-mon-label">Almacenamiento<br><small style="color:#999">${st.mount}</small></span>
+                    <span class="sl-mon-value">${st.pct}%</span>
+                </div>
+                <div class="sl-progress-bar"><div class="sl-progress-fill ${stClass}" style="width:${st.pct}%"></div></div>`;
+            });
+
+            html += `
+                <div class="sl-device-detail" style="margin-top:10px;"><span class="material-icons-round">cell_tower</span> <strong>Red:</strong> ${s.network}</div>
+                <div class="sl-device-detail"><span class="material-icons-round">schedule</span> <strong>Última lectura:</strong> ${s.lastRead}</div>
+            </div>`;
+
+            // POS
+            html += '<div class="sl-subsection"><div class="sl-subsection-title"><span class="material-icons-round">point_of_sale</span> POS</div>';
+            inst.pos.forEach((p, idx) => {
+                html += `
+                <div class="sl-device-card ${p.status === 'offline' ? 'offline' : ''}">
+                    <div class="sl-device-header">
+                        <div><div class="sl-device-name">${p.name}</div><div class="sl-device-ip">IP: ${p.ip}</div></div>
+                        <span class="sl-status-badge ${p.status}">${p.status === 'online' ? 'Conectado' : 'Desconectado'}</span>
+                    </div>
+                    <div class="sl-device-detail"><span class="material-icons-round">link</span> <strong>Conexión:</strong> ${p.connection}</div>
+                    <div class="sl-device-detail"><span class="material-icons-round">link_off</span> <strong>Última desconexión:</strong> ${p.lastDisconnect}</div>
+                </div>`;
+            });
+            html += '</div>';
+
+            // Entry Devices
+            html += '<div class="sl-subsection"><div class="sl-subsection-title"><span class="material-icons-round">sensor_door</span> Dispositivos de Entrada</div>';
+            inst.entry.forEach((e, idx) => {
+                html += slRenderBarrierCard(e);
+            });
+            html += '</div>';
+
+            // Exit Devices
+            html += '<div class="sl-subsection"><div class="sl-subsection-title"><span class="material-icons-round">sensor_door</span> Dispositivos de Salida</div>';
+            inst.exit.forEach((e, idx) => {
+                html += slRenderBarrierCard(e);
+            });
+            html += '</div>';
+
+            // CONTROLS SECTION
+            html += slRenderControls(inst);
+
+            content.innerHTML = html;
+        }
+
+        function slRenderBarrierCard(device) {
+            return `
+            <div class="sl-device-card ${device.status === 'offline' ? 'offline' : ''}">
+                <div class="sl-device-header">
+                    <div><div class="sl-device-name">${device.name}</div><div class="sl-device-ip">IP: ${device.ip}</div></div>
+                    <span class="sl-status-badge ${device.status}">${device.status === 'online' ? 'Conectado' : 'Desconectado'}</span>
+                </div>
+                <div class="sl-device-detail"><span class="material-icons-round">link</span> <strong>Conexión:</strong> ${device.connection}</div>
+                <div class="sl-device-detail"><span class="material-icons-round">link_off</span> <strong>Desconexión:</strong> ${device.lastDisconnect}</div>
+                <div class="sl-device-detail"><span class="material-icons-round">autorenew</span> <strong>Ultimo Inicio:</strong></div>
+                <div style="padding-left: 22px; font-size: 0.7rem; color: #757575; margin-bottom: 2px;">RST: ${device.lastStart}</div>
+                <div class="sl-device-detail"><span class="material-icons-round">signal_cellular_alt</span> <strong>RSSI:</strong> ${device.rssi}dbm</div>
+                <div class="sl-device-detail"><span class="material-icons-round">usb</span> <strong>USB:</strong> ${device.usb}</div>
+                <div class="sl-device-detail"><span class="material-icons-round">sensors</span> <strong>Sensor de boquilla:</strong> ${device.sensor}</div>
+                <div class="sl-device-detail"><span class="material-icons-round">settings_ethernet</span> <strong>Ethernet:</strong> ${device.ethernet}</div>
+            </div>`;
+        }
+
+        function slRenderControls(inst) {
+            const states = slControlStates[inst.id];
+            let html = `
+            <div class="sl-controls-section">
+                <div class="sl-controls-title"><span class="material-icons-round">tune</span> Controles Remotos</div>
+
+                <div class="sl-ctrl-group">
+                    <div class="sl-ctrl-group-label">Barreras</div>
+                    <div class="sl-ctrl-grid">`;
+
+            inst.entry.forEach((e, i) => {
+                html += `
+                    <button class="sl-ctrl-btn" onclick="slRemoteAction('${inst.id}', 'open-barrier', '${e.name}', this)">
+                        <div class="ctrl-icon green"><span class="material-icons-round">lock_open</span></div>
+                        <span class="ctrl-label">Abrir ${e.name}</span>
+                    </button>`;
+            });
+            inst.exit.forEach((e, i) => {
+                html += `
+                    <button class="sl-ctrl-btn" onclick="slRemoteAction('${inst.id}', 'open-barrier', '${e.name}', this)">
+                        <div class="ctrl-icon green"><span class="material-icons-round">lock_open</span></div>
+                        <span class="ctrl-label">Abrir ${e.name}</span>
+                    </button>`;
+            });
+
+            html += `
+                    </div>
+                </div>
+
+                <div class="sl-ctrl-group">
+                    <div class="sl-ctrl-group-label">POS / Cajas</div>
+                    <div class="sl-ctrl-grid">`;
+
+            inst.pos.forEach((p, i) => {
+                const tariffActive = states.testTariff[i];
+                html += `
+                    <button class="sl-ctrl-btn" onclick="slToggleTariff('${inst.id}', ${i}, this)">
+                        <div class="ctrl-icon ${tariffActive ? 'orange' : 'blue'}"><span class="material-icons-round">${tariffActive ? 'money_off' : 'attach_money'}</span></div>
+                        <span class="ctrl-label">Tarifa Prueba<br>${p.name}</span>
+                        <span class="ctrl-status ${tariffActive ? 'active-status' : 'inactive-status'}">${tariffActive ? 'ACTIVA' : 'INACTIVA'}</span>
+                    </button>`;
+                html += `
+                    <button class="sl-ctrl-btn" onclick="slRemoteAction('${inst.id}', 'restart-pos', '${p.name}', this)">
+                        <div class="ctrl-icon orange"><span class="material-icons-round">restart_alt</span></div>
+                        <span class="ctrl-label">Reiniciar<br>${p.name}</span>
+                    </button>`;
+            });
+
+            html += `
+                    </div>
+                </div>
+
+                <div class="sl-ctrl-group">
+                    <div class="sl-ctrl-group-label">Sistema</div>
+                    <div class="sl-ctrl-grid">
+                        <button class="sl-ctrl-btn" onclick="slRemoteAction('${inst.id}', 'restart-server', 'Servidor', this)">
+                            <div class="ctrl-icon red"><span class="material-icons-round">restart_alt</span></div>
+                            <span class="ctrl-label">Reiniciar Servidor</span>
+                        </button>
+                        <button class="sl-ctrl-btn" onclick="slRemoteAction('${inst.id}', 'sync', 'Servidor', this)">
+                            <div class="ctrl-icon purple"><span class="material-icons-round">sync</span></div>
+                            <span class="ctrl-label">Forzar Sincronización</span>
+                        </button>
+                        <button class="sl-ctrl-btn" onclick="slRemoteAction('${inst.id}', 'status-check', 'Todos', this)">
+                            <div class="ctrl-icon teal"><span class="material-icons-round">fact_check</span></div>
+                            <span class="ctrl-label">Verificar Estado General</span>
+                        </button>
+                        <button class="sl-ctrl-btn" onclick="slOpenFreePassage('${inst.id}')">
+                            <div class="ctrl-icon green"><span class="material-icons-round">no_encryption</span></div>
+                            <span class="ctrl-label">Modo Paso Libre</span>
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+
+            return html;
+        }
+
+        // SL Navigation
+        function slShowList() {
+            document.getElementById('sl-view-detail').classList.remove('active');
+            document.getElementById('sl-view-list').classList.add('active');
+        }
+
+        // SL Remote Actions (simulated)
+        async function slRemoteAction(instId, actionType, deviceName, btnEl) {
+            btnEl.classList.add('running');
+            const origLabel = btnEl.querySelector('.ctrl-label').innerHTML;
+            btnEl.querySelector('.ctrl-label').innerHTML = '<div class="spinner-small" style="margin:0 auto;"></div>';
+
+            await new Promise(r => setTimeout(r, 1500 + Math.random() * 1500));
+
+            btnEl.classList.remove('running');
+            btnEl.querySelector('.ctrl-label').innerHTML = origLabel;
+
+            const success = Math.random() > 0.15;
+            const messages = {
+                'open-barrier': { ok: `Barrera "${deviceName}" abierta exitosamente`, fail: `Error al abrir "${deviceName}": Sin respuesta del dispositivo` },
+                'restart-pos': { ok: `${deviceName} reiniciada exitosamente`, fail: `Error al reiniciar ${deviceName}` },
+                'restart-server': { ok: 'Servidor reiniciando... estará disponible en ~2 minutos', fail: 'Error: No se pudo reiniciar el servidor' },
+                'sync': { ok: 'Sincronización forzada completada exitosamente', fail: 'Error de sincronización: Timeout' },
+                'status-check': { ok: `Verificación de ${deviceName} completada: Todo OK`, fail: 'Verificación fallida: Algunos dispositivos no responden' }
+            };
+            const msg = messages[actionType] || { ok: 'Acción completada', fail: 'Error' };
+            showToast(success ? msg.ok : msg.fail, success ? 'success' : 'error');
+        }
+
+        // Toggle test tariff
+        function slToggleTariff(instId, posIdx, btnEl) {
+            slControlStates[instId].testTariff[posIdx] = !slControlStates[instId].testTariff[posIdx];
+            const active = slControlStates[instId].testTariff[posIdx];
+
+            // Re-render detail
+            slShowDetail(instId);
+            showToast(active ? 'Tarifa de prueba ACTIVADA' : 'Tarifa de prueba DESACTIVADA', active ? 'warning' : 'info');
+        }
+
+        // Bottom sheet for free passage mode
+        function slOpenFreePassage(instId) {
+            const inst = SL_INSTALLATIONS.find(i => i.id === instId);
+            if (!inst) return;
+            const states = slControlStates[instId].freePassage;
+
+            document.getElementById('sl-sheet-title').textContent = 'Modo Paso Libre';
+            let html = '<p style="font-size:0.78rem;color:#757575;margin-bottom:14px;">Activa/desactiva el paso libre en barreras específicas. Mientras esté activo, la barrera permanecerá abierta.</p>';
+
+            inst.entry.forEach((e, i) => {
+                const key = 'entry-'+i;
+                const active = states[key];
+                html += `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;">
+                    <div>
+                        <div style="font-weight:600;font-size:0.82rem;color:#333;">${e.name}</div>
+                        <div style="font-size:0.7rem;color:#999;">Entrada · ${e.ip}</div>
+                    </div>
+                    <button onclick="slToggleFreePassage('${instId}','${key}',this)" style="padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.72rem;transition:all 0.2s;${active ? 'background:#e8f5e9;color:#2e7d32;border:1.5px solid #a5d6a7;' : 'background:#f5f5f5;color:#9e9e9e;border:1.5px solid #e0e0e0;'}">
+                        ${active ? 'ACTIVO' : 'INACTIVO'}
+                    </button>
+                </div>`;
+            });
+            inst.exit.forEach((e, i) => {
+                const key = 'exit-'+i;
+                const active = states[key];
+                html += `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;">
+                    <div>
+                        <div style="font-weight:600;font-size:0.82rem;color:#333;">${e.name}</div>
+                        <div style="font-size:0.7rem;color:#999;">Salida · ${e.ip}</div>
+                    </div>
+                    <button onclick="slToggleFreePassage('${instId}','${key}',this)" style="padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.72rem;transition:all 0.2s;${active ? 'background:#e8f5e9;color:#2e7d32;border:1.5px solid #a5d6a7;' : 'background:#f5f5f5;color:#9e9e9e;border:1.5px solid #e0e0e0;'}">
+                        ${active ? 'ACTIVO' : 'INACTIVO'}
+                    </button>
+                </div>`;
+            });
+
+            document.getElementById('sl-sheet-body').innerHTML = html;
+            document.getElementById('sl-sheet-overlay').classList.add('open');
+            document.getElementById('sl-bottom-sheet').classList.add('open');
+        }
+
+        function slToggleFreePassage(instId, key, btnEl) {
+            slControlStates[instId].freePassage[key] = !slControlStates[instId].freePassage[key];
+            const active = slControlStates[instId].freePassage[key];
+            btnEl.textContent = active ? 'ACTIVO' : 'INACTIVO';
+            btnEl.style.background = active ? '#e8f5e9' : '#f5f5f5';
+            btnEl.style.color = active ? '#2e7d32' : '#9e9e9e';
+            btnEl.style.borderColor = active ? '#a5d6a7' : '#e0e0e0';
+            showToast(active ? 'Paso libre ACTIVADO' : 'Paso libre DESACTIVADO', active ? 'warning' : 'info');
+        }
+
+        function slCloseSheet() {
+            document.getElementById('sl-sheet-overlay').classList.remove('open');
+            document.getElementById('sl-bottom-sheet').classList.remove('open');
+        }
+
+        // Update phone clock
+        function slUpdateClock() {
+            const el = document.getElementById('sl-time');
+            if (el) {
+                const now = new Date();
+                el.textContent = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
+            }
+        }
+        setInterval(slUpdateClock, 30000);
+        slUpdateClock();
+
+        // Init SL
+        slRenderList();
+
+        // ============================
+        // AUDIT BACKOFFICE - DATA & LOGIC
+        // ============================
+        // AUDIT BACKOFFICE - DATA & LOGIC
+        // ============================
+        
+        // Dictionary Definition
+        const DEFAULT_AUDIT_DICT = {
+            'TARIFF_UPDATE': {
+                note: 'Disparado cuando un usuario modifica parámetros de una tarifa existente en Base de Datos.',
+                translation: 'El usuario {user} actualizó los precios de la tarifa base.'
+            },
+            'MEGASOFT_RESTART': {
+                note: 'El proceso o hilo de integración con Megasoft fue reiniciado por un crash loop o reinicio manual.',
+                translation: 'El servicio de integración bancaria automática se ha reiniciado ({reason}).'
+            },
+            'INVOICE_VOID': {
+                note: 'Una factura validada fue marcada como anulada (isVoided = true) desde el FrontDesk.',
+                translation: 'El cajero {user} anuló una factura por la razón: "{reason}".'
+            },
+            'USER_CREATED': {
+                note: 'El módulo AuthService registró un nuevo usuario activo.',
+                translation: 'El administrador creó un nuevo acceso al sistema para el empleado {user}.'
+            },
+            'BARRIER_FORCE_OPEN': {
+                note: 'Evento MQTT emitido para apertura remota de barrera (bypass hardware).',
+                translation: 'El usuario forzó la apertura manual de la barrera por motivos de soporte.'
+            },
+            'CURRENCY_RATE_CHANGE': {
+                note: 'Sincronización o actualización manual de las tasas de conversión fiduciaria.',
+                translation: 'La tasa de cambio oficial se ajustó a {rate} {currency}/USD.'
+            }
+        };
+
+        // Load Dictionary from LocalStorage or use Default
+        let auditDictionary = {};
+        try {
+            const savedDict = localStorage.getItem('dc_audit_dictionary_v2');
+            if (savedDict) {
+                auditDictionary = JSON.parse(savedDict);
+            } else {
+                // Initialize default
+                auditDictionary = JSON.parse(JSON.stringify(DEFAULT_AUDIT_DICT));
+            }
+        } catch(e) {
+            auditDictionary = JSON.parse(JSON.stringify(DEFAULT_AUDIT_DICT));
+        }
+
+        const AUDIT_EVENTS = [
+            { id: 'LOG-9921', actionId: 'TARIFF_UPDATE', date: '13/04/2026 14:30:22', user: 'j.perez', userName: 'Julio Pérez', module: 'Tarifas', action: 'Actualización Tarifa Plana', type: 'update', ip: '10.2.204.14', status: 'Completado', 
+              before: '{\n  "tariffId": "T-01",\n  "name": "Tarifa Plana",\n  "basePrice": <span class="diff-hl-red">1.50</span>,\n  "currency": "USD"\n}',
+              after: '{\n  "tariffId": "T-01",\n  "name": "Tarifa Plana",\n  "basePrice": <span class="diff-hl-green">2.00</span>,\n  "currency": "USD"\n}' },
+            { id: 'LOG-9920', actionId: 'MEGASOFT_RESTART', date: '13/04/2026 13:15:05', user: 'system', userName: 'System Service', module: 'System', action: 'Reinicio de Servicio Megasoft', type: 'system', ip: 'localhost', status: 'Exitoso', 
+              before: '{\n  "service": "megasoft_core",\n  "status": "running",\n  "uptime": "14d 2h"\n}',
+              after: '{\n  "service": "megasoft_core",\n  "status": "restarting",\n  "reason": "manual trigger"\n}' },
+            { id: 'LOG-9919', actionId: 'INVOICE_VOID', date: '13/04/2026 12:44:10', user: 'm.gomez', userName: 'María Gómez', module: 'POS', action: 'Anulación de Factura', type: 'delete', ip: '192.168.1.102', status: 'Completado', 
+              before: '{\n  "invoiceNum": "F-0012934",\n  "status": "paid",\n  "total": 45.00,\n  "isVoided": <span class="diff-hl-red">false</span>\n}',
+              after: '{\n  "invoiceNum": "F-0012934",\n  "status": "void",\n  "total": 45.00,\n  "isVoided": <span class="diff-hl-green">true</span>,\n  "voidReason": "Error de impresión"\n}' },
+            { id: 'LOG-9918', actionId: 'USER_CREATED', date: '13/04/2026 09:10:00', user: 'admin', userName: 'Administrador', module: 'Security', action: 'Creación de Usuario', type: 'create', ip: '10.0.0.45', status: 'Completado', 
+              before: 'null',
+              after: '{\n  "userId": "U-149",\n  "username": "cajero_norte",\n  "role": "POS_OPERATOR",\n  "permissions": [\n    "create_invoice",\n    "read_inventory"\n  ]\n}' },
+            { id: 'LOG-9917', actionId: 'BARRIER_FORCE_OPEN', date: '12/04/2026 18:20:33', user: 'j.perez', userName: 'Julio Pérez', module: 'System', action: 'Apertura Barrera Manual', type: 'system', ip: '10.2.204.14', status: 'Completado', 
+              before: '{\n  "barrierId": "EXT-01",\n  "command": "none"\n}',
+              after: '{\n  "barrierId": "EXT-01",\n  "command": "FORCE_OPEN",\n  "operator": "j.perez"\n}' },
+            { id: 'LOG-9916', actionId: 'CURRENCY_RATE_CHANGE', date: '12/04/2026 15:05:11', user: 'm.gomez', userName: 'María Gómez', module: 'POS', action: 'Cambio Tasa de Cambio', type: 'update', ip: '192.168.1.102', status: 'Aprobación Pendiente', 
+              before: '{\n  "currency": "VES",\n  "rateToUSD": <span class="diff-hl-red">389.50</span>,\n  "source": "BCV"\n}',
+              after: '{\n  "currency": "VES",\n  "rateToUSD": <span class="diff-hl-green">393.22</span>,\n  "source": "BCV"\n}' }
+        ];
+
+        function auditSwitchView(view) {
+            document.getElementById('audit-tab-historial').classList.toggle('active', view === 'historial');
+            document.getElementById('audit-tab-dictionary').classList.toggle('active', view === 'dictionary');
+            
+            document.getElementById('audit-main-area').style.display = (view === 'historial') ? 'block' : 'none';
+            document.getElementById('audit-dict-area').style.display = (view === 'dictionary') ? 'block' : 'none';
+            
+            // Si nos pasamos a dictionary y la barra lateral de filtros está abierta, la cerramos
+            if(view === 'dictionary') {
+                document.getElementById('audit-sidebar').classList.remove('open');
+            }
+        }
+
+        function auditRenderDictionary() {
+            const tbody = document.getElementById('audit-dict-tbody');
+            let html = '';
+            
+            Object.keys(auditDictionary).forEach(actionId => {
+                const data = auditDictionary[actionId];
+                html += `
+                <tr>
+                    <td><span style="font-family:monospace;font-size:0.85rem;color:#e2e8f0;background:#1a1e30;padding:4px 8px;border-radius:4px;">${actionId}</span></td>
+                    <td style="color:#94a3b8;font-size:0.8rem;line-height:1.4;">${data.note}</td>
+                    <td>
+                        <input type="text" class="audit-dict-input" value="${data.translation.replace(/"/g, '&quot;')}" onchange="auditSaveTranslation('${actionId}', this.value)" placeholder="Escriba la traducción aquí...">
+                        <div style="font-size:0.7rem;color:#64748b;margin-top:6px;">Soporta variables: {user}, {reason}, {rate}, {currency}</div>
+                    </td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function auditSaveTranslation(actionId, newValue) {
+            if (auditDictionary[actionId]) {
+                auditDictionary[actionId].translation = newValue;
+                // Save to localStorage
+                localStorage.setItem('dc_audit_dictionary_v2', JSON.stringify(auditDictionary));
+                showToast('Traducción guardada exitosamente.', 'success');
+            }
+        }
+
+        function auditRenderTable() {
+            const tbody = document.getElementById('audit-tbody');
+            let html = '';
+            
+            AUDIT_EVENTS.forEach(ev => {
+                const badgeMap = {
+                    'update': { class: 'update', label: 'ACTUALIZACIÓN' },
+                    'create': { class: 'create', label: 'CREACIÓN' },
+                    'delete': { class: 'delete', label: 'ELIMINACIÓN' },
+                    'system': { class: 'system', label: 'SISTEMA' },
+                };
+                const badge = badgeMap[ev.type] || badgeMap['system'];
+
+                html += `
+                <tr onclick="auditOpenModal('${ev.id}')">
+                    <td class="audit-date">${ev.date}</td>
+                    <td>
+                        <div class="audit-user">
+                            <div class="avatar">${ev.user.charAt(0).toUpperCase()}</div>
+                            ${ev.userName} <span style="color:#64748b;font-size:0.75rem;">(${ev.user})</span>
+                        </div>
+                    </td>
+                    <td><span style="color:#94a3b8;font-size:0.85rem;">${ev.module}</span></td>
+                    <td style="font-weight:500;">${ev.action}</td>
+                    <td><span class="audit-badge ${badge.class}">${badge.label}</span></td>
+                    <td class="audit-action-cell"><span class="material-icons-round">chevron_right</span></td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function auditToggleSidebar() {
+            const sidebar = document.getElementById('audit-sidebar');
+            const main = document.getElementById('audit-main-area');
+            sidebar.classList.toggle('open');
+        }
+
+        function auditApplyFilters() {
+            auditToggleSidebar();
+            showToast('Filtros aplicados correctamente', 'success');
+            // Table is already hardcoded for demo, we just simulate loading
+            const tbody = document.getElementById('audit-tbody');
+            tbody.style.opacity = '0.5';
+            setTimeout(() => { tbody.style.opacity = '1'; }, 400);
+        }
+
+        function auditExportCSV() {
+            showToast('Exportando 6 registros a CSV...', 'info');
+        }
+
+        function auditOpenModal(id) {
+            const ev = AUDIT_EVENTS.find(e => e.id === id);
+            if(!ev) return;
+
+            document.getElementById('audit-modal-action').textContent = ev.action;
+            document.getElementById('audit-modal-tx').textContent = ev.id;
+            document.getElementById('audit-modal-date').textContent = ev.date;
+            document.getElementById('audit-modal-user').textContent = ev.userName + ' (' + ev.user + ')';
+            document.getElementById('audit-modal-ip').textContent = ev.ip;
+            document.getElementById('audit-modal-module').textContent = ev.module;
+            document.getElementById('audit-modal-status').textContent = ev.status;
+
+            document.getElementById('audit-diff-before').innerHTML = ev.before;
+            document.getElementById('audit-diff-after').innerHTML = ev.after;
+
+            // Interpolate translation block
+            const hrBox = document.getElementById('audit-hr-box');
+            const hrText = document.getElementById('audit-hr-text');
+            const translationObj = auditDictionary[ev.actionId];
+            
+            if (translationObj && translationObj.translation) {
+                let interpolated = translationObj.translation;
+                // Demo variable resolution
+                interpolated = interpolated.replace('{user}', '<strong>' + ev.userName + '</strong>');
+                
+                // Add specific resolutions just for realistic demo mock data
+                if (ev.actionId === 'INVOICE_VOID') interpolated = interpolated.replace('{reason}', 'Error de impresión');
+                if (ev.actionId === 'MEGASOFT_RESTART') interpolated = interpolated.replace('{reason}', 'manual trigger');
+                if (ev.actionId === 'CURRENCY_RATE_CHANGE') {
+                    interpolated = interpolated.replace('{rate}', '<strong>393.22</strong>').replace('{currency}', 'VES');
+                }
+
+                hrText.innerHTML = interpolated;
+                hrBox.style.display = 'flex';
+            } else {
+                hrBox.style.display = 'none';
+            }
+
+            document.getElementById('audit-modal').classList.add('open');
+        }
+
+        function auditCloseModal(e) {
+            const overlay = document.getElementById('audit-modal');
+            if (e.target === overlay) {
+                overlay.classList.remove('open');
+            }
+        }
+
+        // Init Audit
+        auditRenderTable();
+        auditRenderDictionary();
+
+    </script>
+</body>
+</html>
