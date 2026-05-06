@@ -1,0 +1,1 @@
+# demos-pos-locales-audit-fastkiosk
