@@ -1784,6 +1784,182 @@
         }
         .ap-btn-test-scan:hover { background: #ccff00; color: #050A30; }
 
+        /* ============================================================ */
+        /* FEATURE VERSIONING (SPLIT SCREEN)                            */
+        /* ============================================================ */
+        .fv-screen {
+            background: #000;
+            display: none;
+            width: 100%; height: 100vh;
+        }
+        .fv-screen.active { display: flex; }
+        
+        /* Left Panel: Backoffice */
+        .fv-backoffice-panel {
+            width: 60%;
+            background: #020617;
+            border-right: 1px solid #1e293b;
+            display: flex; flex-direction: column;
+            height: 100%;
+        }
+        .fv-bo-header {
+            padding: 24px 32px;
+            background: #0f172a;
+            border-bottom: 1px solid #1e293b;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .fv-bo-header h2 { font-size: 1.4rem; color: #f8fafc; margin:0; display:flex; align-items:center; gap:12px; }
+        .fv-bo-header .material-icons-round { color: #6366f1; }
+        
+        .fv-bo-body {
+            padding: 32px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        .fv-version-selector {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            display: flex; align-items: center; gap: 16px;
+        }
+        .fv-version-selector label { font-size: 0.9rem; font-weight: 600; color: #cbd5e1; text-transform: uppercase; letter-spacing: 1px;}
+        .fv-version-select {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #f8fafc;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-family: 'Outfit'; font-size: 1rem; font-weight: 600;
+            flex: 1; outline: none; cursor:pointer;
+        }
+        
+        .fv-feature-group {
+            margin-bottom: 32px;
+        }
+        .fv-feature-group-title {
+            font-size: 1rem; font-weight: 700; color: #94a3b8;
+            border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 16px;
+        }
+        .fv-toggle-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px; background: rgba(30, 41, 59, 0.4);
+            border-radius: 8px; margin-bottom: 8px;
+            transition: background 0.2s;
+        }
+        .fv-toggle-row:hover { background: rgba(30, 41, 59, 0.8); }
+        .fv-toggle-info { display: flex; align-items: center; gap: 12px; }
+        .fv-toggle-info .material-icons-round { color: #64748b; font-size: 20px; }
+        .fv-toggle-label { font-size: 0.95rem; font-weight: 500; color: #e2e8f0; }
+        
+        /* Modern Toggle Switch */
+        .fv-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .fv-switch input { opacity: 0; width: 0; height: 0; }
+        .fv-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .3s; border-radius: 24px; }
+        .fv-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        .fv-switch input:checked + .fv-slider { background-color: #6366f1; }
+        .fv-switch input:checked + .fv-slider:before { transform: translateX(20px); }
+
+        /* Right Panel: Mobile Preview */
+        .fv-preview-panel {
+            width: 40%;
+            background: #e2e8f0;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        .fv-phone-frame {
+            width: 375px; height: 812px;
+            background: #f8fafc;
+            border-radius: 40px;
+            border: 12px solid #0f172a;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            position: relative; overflow: hidden;
+            display: flex; flex-direction: column;
+            font-family: 'Roboto', sans-serif;
+            transform: scale(0.9);
+        }
+        
+        /* Phone UI */
+        .fv-app-header {
+            background: #203588; /* Deep blue from screenshot */
+            color: white; padding: 16px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            padding-top: 40px;
+        }
+        .fv-app-header-left { display: flex; align-items: center; gap: 16px; }
+        .fv-app-header h1 { font-size: 1.3rem; margin: 0; font-weight: 500; }
+        .fv-app-cart { position: relative; }
+        .fv-app-cart-badge { position: absolute; top: -6px; right: -8px; background: #ef4444; color: white; font-size: 0.6rem; font-weight:bold; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+        
+        .fv-app-hero {
+            height: 180px;
+            background: linear-gradient(to bottom, rgba(32,53,136,0.5), rgba(32,53,136,0.1)), url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=600&auto=format&fit=crop') center/cover;
+            position: relative;
+        }
+        
+        .fv-app-content {
+            flex: 1; background: #f3f4f6;
+            position: relative;
+            padding: 0 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        
+        .fv-app-logo-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            width: 70%;
+            text-align: center;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            margin-top: -60px;
+            margin-bottom: 24px;
+            display: flex; flex-direction: column; align-items: center; gap: 12px;
+        }
+        .fv-app-logo-icon {
+            width: 80px; height: 80px; background: #f1f5f9; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .fv-app-logo-icon .material-icons-round { font-size: 48px; color: #203588; }
+        
+        .fv-app-title { font-size: 1.2rem; color: #334155; font-weight: 400; margin-bottom: 24px; }
+        
+        .fv-app-grid {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding-bottom: 30px;
+        }
+        
+        .fv-app-btn {
+            background: #203588;
+            border-radius: 16px;
+            padding: 24px 12px;
+            display: flex; flex-direction: column; align-items: center; gap: 12px;
+            color: white; border: none; cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+        .fv-app-btn:active { transform: scale(0.96); }
+        .fv-app-btn .material-icons-round { font-size: 36px; }
+        .fv-app-btn span { font-size: 0.85rem; font-weight: 500; text-align: center; line-height: 1.2; }
+        
+        /* Disabled state */
+        .fv-app-btn.disabled {
+            background: #babcbc;
+            color: #f8fafc;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        
+        /* Specific coloring */
+        .fv-app-btn.accent { background: #0ea5e9; }
+        .fv-app-btn.warning { background: #f59e0b; }
+
     </style>
 </head>
 <body>
@@ -1834,6 +2010,15 @@
                 </div>
                 <h3>Kiosco Autopago</h3>
                 <p>Flujo optimizado para pago de tickets rápido.</p>
+                <span class="badge active">Activo</span>
+            </div>
+            <!-- Feature Flag Card -->
+            <div class="hub-card fade-in-up delay-5" onclick="navigateTo('fv')">
+                <div class="hub-card-icon" style="background: linear-gradient(135deg, #1e293b, #0f172a); color: #6366f1;">
+                    <span class="material-icons-round">toggle_on</span>
+                </div>
+                <h3>Gestión de Versiones</h3>
+                <p>Feature flags y preview dinámico de la App de Usuarios Frecuentes.</p>
                 <span class="badge active">Activo</span>
             </div>
         </div>
@@ -2553,6 +2738,128 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    <!-- ============================================================
+         FEATURE VERSIONING SCREEN (SPLIT)
+         ============================================================ -->
+    <div id="fv-screen" class="screen fv-screen">
+        
+        <!-- Left Panel: Backoffice -->
+        <div class="fv-backoffice-panel">
+            <div class="fv-bo-header">
+                <h2><span class="material-icons-round">admin_panel_settings</span> Control de Versiones App</h2>
+                <button class="audit-btn" onclick="navigateTo('hub')" style="padding: 6px 12px; background: rgba(255,255,255,0.1); border:none; color:white;">
+                    <span class="material-icons-round" style="font-size:18px;">arrow_back</span> Salir
+                </button>
+            </div>
+            
+            <div class="fv-bo-body">
+                <div class="fv-version-selector">
+                    <label>Perfil de Versión Activa</label>
+                    <select class="fv-version-select" id="fv-version-select" onchange="fvChangeVersion(this.value)">
+                        <option value="v1.0">v1.0.0 (Legacy App)</option>
+                        <option value="v2.0" selected>v2.1.0 (Current Release)</option>
+                        <option value="v3.0">v3.0.0-beta (Próxima Mayor)</option>
+                    </select>
+                </div>
+                
+                <div class="fv-feature-group">
+                    <div class="fv-feature-group-title">MÓDULOS PRINCIPALES</div>
+                    
+                    <div class="fv-toggle-row">
+                        <div class="fv-toggle-info">
+                            <span class="material-icons-round">qr_code_scanner</span>
+                            <span class="fv-toggle-label">Módulo "Entrar" (QR Acceso)</span>
+                        </div>
+                        <label class="fv-switch"><input type="checkbox" id="flag-mod-entrar" onchange="fvToggleFlag('mod-entrar', this.checked)"><span class="fv-slider"></span></label>
+                    </div>
+                    
+                    <div class="fv-toggle-row">
+                        <div class="fv-toggle-info">
+                            <span class="material-icons-round">document_scanner</span>
+                            <span class="fv-toggle-label">Módulo "Digitalizar Ticket"</span>
+                        </div>
+                        <label class="fv-switch"><input type="checkbox" id="flag-mod-scan" onchange="fvToggleFlag('mod-scan', this.checked)"><span class="fv-slider"></span></label>
+                    </div>
+                    
+                    <div class="fv-toggle-row">
+                        <div class="fv-toggle-info">
+                            <span class="material-icons-round">history</span>
+                            <span class="fv-toggle-label">Módulo "Historial"</span>
+                        </div>
+                        <label class="fv-switch"><input type="checkbox" id="flag-mod-history" onchange="fvToggleFlag('mod-history', this.checked)"><span class="fv-slider"></span></label>
+                    </div>
+                    
+                    <div class="fv-toggle-row">
+                        <div class="fv-toggle-info">
+                            <span class="material-icons-round">map</span>
+                            <span class="fv-toggle-label">Módulo "Mapa de Estacionamientos"</span>
+                        </div>
+                        <label class="fv-switch"><input type="checkbox" id="flag-mod-map" onchange="fvToggleFlag('mod-map', this.checked)"><span class="fv-slider"></span></label>
+                    </div>
+                </div>
+                
+                <div class="fv-feature-group">
+                    <div class="fv-feature-group-title">MÉTODOS DE ACCESO ADICIONALES</div>
+                    
+                    <div class="fv-toggle-row">
+                        <div class="fv-toggle-info">
+                            <span class="material-icons-round">contactless</span>
+                            <span class="fv-toggle-label">Soporte NFC / RFID</span>
+                        </div>
+                        <label class="fv-switch"><input type="checkbox" id="flag-acc-nfc" onchange="fvToggleFlag('acc-nfc', this.checked)"><span class="fv-slider"></span></label>
+                    </div>
+                    
+                    <div class="fv-toggle-row">
+                        <div class="fv-toggle-info">
+                            <span class="material-icons-round">bluetooth_drive</span>
+                            <span class="fv-toggle-label">Apertura por Bluetooth BLE</span>
+                        </div>
+                        <label class="fv-switch"><input type="checkbox" id="flag-acc-bt" onchange="fvToggleFlag('acc-bt', this.checked)"><span class="fv-slider"></span></label>
+                    </div>
+                    
+                    <div class="fv-toggle-row">
+                        <div class="fv-toggle-info">
+                            <span class="material-icons-round">directions_car</span>
+                            <span class="fv-toggle-label">Reconocimiento Placa (LPR) Integrado</span>
+                        </div>
+                        <label class="fv-switch"><input type="checkbox" id="flag-acc-lpr" onchange="fvToggleFlag('acc-lpr', this.checked)"><span class="fv-slider"></span></label>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        
+        <!-- Right Panel: App Preview -->
+        <div class="fv-preview-panel">
+            <div class="fv-phone-frame">
+                <div class="fv-app-header">
+                    <div class="fv-app-header-left">
+                        <span class="material-icons-round">arrow_back_ios</span>
+                        <h1>SuperApp</h1>
+                    </div>
+                    <div class="fv-app-cart">
+                        <span class="material-icons-round">shopping_cart</span>
+                        <div class="fv-app-cart-badge">0</div>
+                    </div>
+                </div>
+                <div class="fv-app-hero"></div>
+                <div class="fv-app-content">
+                    <div class="fv-app-logo-card">
+                        <div class="fv-app-logo-icon">
+                            <span class="material-icons-round">domain</span>
+                        </div>
+                        <div style="font-weight:700; color:#1e3a8a;">Centro Empresarial Galipán</div>
+                    </div>
+                    <div class="fv-app-title">Centro Empresarial</div>
+                    
+                    <div class="fv-app-grid" id="fv-app-grid">
+                        <!-- Rendered via JS -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -4008,6 +4315,115 @@
             const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
             apSimulateScan(randomCode);
         }
+
+        // ============================
+        // FEATURE VERSIONING LOGIC
+        // ============================
+        
+        const fvConfigs = {
+            'v1.0': {
+                'mod-entrar': true,
+                'mod-scan': false,
+                'mod-history': false,
+                'mod-map': false,
+                'acc-nfc': false,
+                'acc-bt': false,
+                'acc-lpr': false
+            },
+            'v2.0': {
+                'mod-entrar': true,
+                'mod-scan': false, // Match screenshot greyed out
+                'mod-history': true,
+                'mod-map': false,
+                'acc-nfc': false,
+                'acc-bt': false,
+                'acc-lpr': false
+            },
+            'v3.0': {
+                'mod-entrar': true,
+                'mod-scan': true,
+                'mod-history': true,
+                'mod-map': true,
+                'acc-nfc': true,
+                'acc-bt': true,
+                'acc-lpr': true
+            }
+        };
+        
+        let currentFvState = {...fvConfigs['v2.0']};
+        
+        function fvInit() {
+            document.getElementById('fv-version-select').value = 'v2.0';
+            fvChangeVersion('v2.0');
+        }
+        
+        function fvChangeVersion(ver) {
+            currentFvState = {...fvConfigs[ver]};
+            
+            // Update all toggle switches
+            Object.keys(currentFvState).forEach(key => {
+                const el = document.getElementById('flag-' + key);
+                if(el) el.checked = currentFvState[key];
+            });
+            
+            fvRenderApp();
+            showToast(`Versión cambiada a ${ver}. Aplicación actualizada.`, 'info');
+        }
+        
+        function fvToggleFlag(key, isChecked) {
+            currentFvState[key] = isChecked;
+            fvRenderApp();
+        }
+        
+        function fvRenderApp() {
+            const grid = document.getElementById('fv-app-grid');
+            let html = '';
+            
+            // 1. Entrar
+            if (currentFvState['mod-entrar']) {
+                html += `<button class="fv-app-btn"><span class="material-icons-round">qr_code_2</span><span>Entrar</span></button>`;
+            } else {
+                html += `<button class="fv-app-btn disabled"><span class="material-icons-round">qr_code_2</span><span>Entrar</span></button>`;
+            }
+            
+            // 2. Scan Ticket
+            if (currentFvState['mod-scan']) {
+                html += `<button class="fv-app-btn"><span class="material-icons-round">document_scanner</span><span>Digitalizar ticket</span></button>`;
+            } else {
+                html += `<button class="fv-app-btn disabled"><span class="material-icons-round">document_scanner</span><span>Digitalizar ticket</span></button>`;
+            }
+            
+            // 3. History
+            if (currentFvState['mod-history']) {
+                html += `<button class="fv-app-btn"><span class="material-icons-round">history</span><span>Historial</span></button>`;
+            } else {
+                html += `<button class="fv-app-btn disabled"><span class="material-icons-round">history</span><span>Historial</span></button>`;
+            }
+            
+            // 4. Map (New feature - hidden if false)
+            if (currentFvState['mod-map']) {
+                html += `<button class="fv-app-btn accent"><span class="material-icons-round">map</span><span>Mapa Estacionamientos</span></button>`;
+            }
+            
+            // 5. NFC
+            if (currentFvState['acc-nfc']) {
+                html += `<button class="fv-app-btn accent"><span class="material-icons-round">contactless</span><span>Pase NFC</span></button>`;
+            }
+            
+            // 6. Bluetooth
+            if (currentFvState['acc-bt']) {
+                html += `<button class="fv-app-btn accent"><span class="material-icons-round">bluetooth_drive</span><span>Apertura BT</span></button>`;
+            }
+            
+            // 7. LPR
+            if (currentFvState['acc-lpr']) {
+                html += `<button class="fv-app-btn warning"><span class="material-icons-round">directions_car</span><span>Mi Placa (LPR)</span></button>`;
+            }
+            
+            grid.innerHTML = html;
+        }
+        
+        fvInit();
 
     </script>
 </body>
